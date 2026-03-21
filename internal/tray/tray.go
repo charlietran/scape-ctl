@@ -186,6 +186,12 @@ func (a *App) pollStatus() {
 			continue
 		}
 
+		if !status.Connected {
+			a.mStatus.SetTitle("● Dongle connected (headset off)")
+			a.mBattery.SetTitle("Battery: --")
+			continue
+		}
+
 		if status.BatteryPercent >= 0 {
 			icon := "🔋"
 			if status.Charging {
@@ -193,6 +199,7 @@ func (a *App) pollStatus() {
 			}
 			a.mBattery.SetTitle(fmt.Sprintf("%s Battery: %d%%", icon, status.BatteryPercent))
 		}
+		a.mStatus.SetTitle(fmt.Sprintf("● %s", dev.Info.ProductName))
 	}
 }
 
