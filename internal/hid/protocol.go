@@ -63,6 +63,7 @@ var (
 	CmdHeadsetSerial    = [2]byte{0xF1, 0x02} // → [3..] ASCII serial
 	CmdHeadsetPresence  = [2]byte{0xF1, 0x05} // → [2]=present (0/1)
 	CmdStatusPoll       = [2]byte{0xF1, 0x21} // → full status blob
+	CmdMNCControl       = [2]byte{0xF1, 0x36} // + 0x01 (on) / 0x00 (off)
 )
 
 // Config transfer (family 0xA4)
@@ -294,9 +295,20 @@ func BuildSetLighting(cfg *LightingConfig) (byte, []byte) {
 	return BuildSetLightOn(cfg.Mode != LightOff)
 }
 
+// BuildSetMNC toggles Microphone Noise Cancellation on or off.
+// Sends [0xF1, 0x36, 1/0].
+func BuildSetMNC(on bool) (byte, []byte) {
+	buf := make([]byte, ReportSize)
+	buf[0] = CmdMNCControl[0]
+	buf[1] = CmdMNCControl[1]
+	if on {
+		buf[2] = 0x01
+	}
+	return ReportID, buf
+}
+
 func BuildSetMic(cfg *MicConfig) (byte, []byte) {
-	// TODO: mic commands not yet observed in sniffer log
-	return buildCmd(CmdStatusPoll[:])
+	return BuildSetMNC(cfg.NoiseCancellation)
 }
 
 // ── Report parsers ──────────────────────────────────

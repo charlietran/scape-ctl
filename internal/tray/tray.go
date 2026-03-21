@@ -39,6 +39,9 @@ type App struct {
 	mEq        [3]*systray.MenuItem
 	mLightTog  *systray.MenuItem
 	lightOn    bool
+	mMicMute   *systray.MenuItem
+	mMNCTog    *systray.MenuItem
+	mncOn      bool
 	mDispBlack *systray.MenuItem
 	mDispWhite *systray.MenuItem
 	mDispText  *systray.MenuItem
@@ -83,6 +86,11 @@ func (a *App) OnReady() {
 	// ── Lighting ──
 	a.mLightTog = systray.AddMenuItem("RGB: Off", "Toggle RGB lighting")
 
+	// ── Microphone ──
+	a.mMicMute = systray.AddMenuItem("Mic: Unmuted", "Mic mute status (hardware)")
+	a.mMicMute.Disable()
+	a.mMNCTog = systray.AddMenuItem("Noise Cancellation: Off", "Toggle MNC")
+
 	systray.AddSeparator()
 
 	// ── Display ──
@@ -123,6 +131,8 @@ func (a *App) handleClicks() {
 			a.setEq(3)
 		case <-a.mLightTog.ClickedCh:
 			a.toggleLight()
+		case <-a.mMNCTog.ClickedCh:
+			a.toggleMNC()
 		case <-a.mDispBlack.ClickedCh:
 			a.setDisplay("black")
 		case <-a.mDispWhite.ClickedCh:
@@ -176,8 +186,11 @@ func (a *App) handleMonitorEvents() {
 			a.updateEqCheck(s.EqSlot)
 			a.mu.Lock()
 			a.lightOn = s.LightSlot > 0
+			a.mncOn = s.MNCOn
 			a.mu.Unlock()
 			a.updateLightStatus(s.LightSlot > 0)
+			a.updateMicStatus(s.Muted)
+			a.updateMNCStatus(s.MNCOn)
 		}
 	}
 }
@@ -239,6 +252,43 @@ func (a *App) updateLightStatus(on bool) {
 	} else {
 		a.mLightTog.SetTitle("RGB: Off")
 		a.mLightTog.Uncheck()
+	}
+}
+
+func (a *App) toggleMNC() {
+	a.mu.Lock()
+	on := !a.mncOn
+	a.mu.Unlock()
+
+	if err := a.sendCommand(func(dev *hid.Device) error {
+		rid, payload := hid.BuildSetMNC(on)
+		return dev.Send(rid, payload)
+	}); err != nil {
+		log.Printf("[tray] set MNC error: %v", err)
+	} else {
+		a.mu.Lock()
+		a.mncOn = on
+		a.mu.Unlock()
+		a.updateMNCStatus(on)
+		log.Printf("[tray] MNC %v", on)
+	}
+}
+
+func (a *App) updateMicStatus(muted bool) {
+	if muted {
+		a.mMicMute.SetTitle("Mic: Muted")
+	} else {
+		a.mMicMute.SetTitle("Mic: Unmuted")
+	}
+}
+
+func (a *App) updateMNCStatus(on bool) {
+	if on {
+		a.mMNCTog.SetTitle("Noise Cancellation: On")
+		a.mMNCTog.Check()
+	} else {
+		a.mMNCTog.SetTitle("Noise Cancellation: Off")
+		a.mMNCTog.Uncheck()
 	}
 }
 
