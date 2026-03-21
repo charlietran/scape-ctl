@@ -245,10 +245,14 @@ func BuildGetEqCurve(slot int) (byte, []byte) {
 	return buildCmd(CmdStatusPoll[:])
 }
 
+// BuildSetActiveEq switches the active EQ slot (1-3).
+// Sends [0xA7, 0x07, slot] — the device's SetEqSlot command.
 func BuildSetActiveEq(slot int) (byte, []byte) {
-	// TODO: EQ preset switching uses the a7 command family
-	// For now, send a status poll as a no-op
-	return buildCmd(CmdStatusPoll[:])
+	buf := make([]byte, ReportSize)
+	buf[0] = CmdDSPApply[0] // 0xA7
+	buf[1] = CmdDSPApply[1] // 0x07
+	buf[2] = byte(slot)
+	return ReportID, buf
 }
 
 // BuildSetBiquad builds a DSP biquad coefficient command for a single band.

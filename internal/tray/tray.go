@@ -59,9 +59,9 @@ func (a *App) OnReady() {
 
 	// ── EQ presets ──
 	mEqParent := systray.AddMenuItem("EQ Preset", "Switch EQ")
-	a.mEq[0] = mEqParent.AddSubMenuItem("① Balance", "Slot 0")
-	a.mEq[1] = mEqParent.AddSubMenuItem("② Clarity", "Slot 1")
-	a.mEq[2] = mEqParent.AddSubMenuItem("③ Depth", "Slot 2")
+	a.mEq[0] = mEqParent.AddSubMenuItem("Slot 1", "EQ Slot 1")
+	a.mEq[1] = mEqParent.AddSubMenuItem("Slot 2", "EQ Slot 2")
+	a.mEq[2] = mEqParent.AddSubMenuItem("Slot 3", "EQ Slot 3")
 
 	// ── Lighting ──
 	mLight := systray.AddMenuItem("Lighting", "Toggle lighting")
@@ -122,11 +122,11 @@ func (a *App) handleClicks() {
 	for {
 		select {
 		case <-a.mEq[0].ClickedCh:
-			a.setEq(0)
-		case <-a.mEq[1].ClickedCh:
 			a.setEq(1)
-		case <-a.mEq[2].ClickedCh:
+		case <-a.mEq[1].ClickedCh:
 			a.setEq(2)
+		case <-a.mEq[2].ClickedCh:
+			a.setEq(3)
 		case <-a.mLightOff.ClickedCh:
 			a.setLight(false)
 		case <-a.mLightOn.ClickedCh:
@@ -206,10 +206,9 @@ func (a *App) setEq(slot int) {
 		return
 	}
 	if err := dev.SetActiveEq(slot); err != nil {
-		log.Printf("[tray] set EQ %d error: %v", slot, err)
+		log.Printf("[tray] set EQ slot %d error: %v", slot, err)
 	} else {
-		names := []string{"Balance", "Clarity", "Depth"}
-		log.Printf("[tray] switched to EQ preset: %s", names[slot])
+		log.Printf("[tray] switched to EQ slot %d", slot)
 	}
 }
 
