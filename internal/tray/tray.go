@@ -89,7 +89,7 @@ func (a *App) OnReady() {
 	// ── Microphone ──
 	a.mMicMute = systray.AddMenuItem("Mic: Unmuted", "Mic mute status (hardware)")
 	a.mMicMute.Disable()
-	a.mMNCTog = systray.AddMenuItem("Noise Cancellation: Off", "Toggle MNC")
+	a.mMNCTog = systray.AddMenuItem("Mic Noise Cancellation: Off", "Toggle MNC")
 
 	systray.AddSeparator()
 
@@ -284,10 +284,10 @@ func (a *App) updateMicStatus(muted bool) {
 
 func (a *App) updateMNCStatus(on bool) {
 	if on {
-		a.mMNCTog.SetTitle("Noise Cancellation: On")
+		a.mMNCTog.SetTitle("Mic Noise Cancellation: On")
 		a.mMNCTog.Check()
 	} else {
-		a.mMNCTog.SetTitle("Noise Cancellation: Off")
+		a.mMNCTog.SetTitle("Mic Noise Cancellation: Off")
 		a.mMNCTog.Uncheck()
 	}
 }
