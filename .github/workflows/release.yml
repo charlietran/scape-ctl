@@ -27,9 +27,52 @@ jobs:
       - name: Fix git safe directory
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - uses: goreleaser/goreleaser-action@v6
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build all platforms
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          LDFLAGS="-s -w -X main.version=${VERSION}"
+          PKG=./cmd/scape-ctl
+
+          echo "Building linux/amd64..."
+          CGO_ENABLED=1 CC=zig-cc-linux-amd64 GOOS=linux GOARCH=amd64 \
+            go build -ldflags "${LDFLAGS}" -o dist/scape-ctl_linux_amd64/scape-ctl ${PKG}
+
+          echo "Building darwin/arm64..."
+          CGO_ENABLED=1 CC=zig-cc-darwin-arm64 GOOS=darwin GOARCH=arm64 \
+            go build -ldflags "${LDFLAGS}" -o dist/scape-ctl_darwin_arm64/scape-ctl ${PKG}
+
+          echo "Building windows/amd64..."
+          CGO_ENABLED=1 CC=zig-cc-windows-amd64 GOOS=windows GOARCH=amd64 \
+            go build -ldflags "${LDFLAGS}" -o dist/scape-ctl_windows_amd64/scape-ctl.exe ${PKG}
+
+      - name: Package archives
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Linux
+          cp README.md config.example.toml 50-fractal.rules dist/scape-ctl_linux_amd64/
+          tar -czf "dist/scape-ctl_${VERSION}_linux_amd64.tar.gz" -C dist scape-ctl_linux_amd64
+
+          # macOS
+          cp README.md config.example.toml dist/scape-ctl_darwin_arm64/
+          tar -czf "dist/scape-ctl_${VERSION}_darwin_arm64.tar.gz" -C dist scape-ctl_darwin_arm64
+
+          # Windows
+          cp README.md config.example.toml dist/scape-ctl_windows_amd64/
+          cd dist && zip -r "scape-ctl_${VERSION}_windows_amd64.zip" scape-ctl_windows_amd64 && cd ..
+
+          # Checksums
+          cd dist && sha256sum *.tar.gz *.zip > checksums.txt && cd ..
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          version: "~> v2"
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          generate_release_notes: true
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/checksums.txt

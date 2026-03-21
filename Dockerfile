@@ -1,6 +1,5 @@
 FROM ubuntu:24.04
 
-# Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
 # System deps for CGO builds (hidapi, systray, zig cross-compilation)
@@ -35,10 +34,5 @@ RUN mkdir -p /usr/local/bin/zig-cc \
     && printf '#!/bin/sh\nexec zig cc -target x86_64-windows-gnu "$@"\n' > /usr/local/bin/zig-cc/zig-cc-windows-amd64 \
     && chmod +x /usr/local/bin/zig-cc/*
 ENV PATH="/usr/local/bin/zig-cc:${PATH}"
-
-# GoReleaser
-ARG GORELEASER_VERSION=2.6.1
-RUN curl -fsSL "https://github.com/goreleaser/goreleaser/releases/download/v${GORELEASER_VERSION}/goreleaser_Linux_x86_64.tar.gz" \
-    | tar -C /usr/local/bin -xz goreleaser
 
 WORKDIR /build
