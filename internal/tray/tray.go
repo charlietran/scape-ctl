@@ -83,7 +83,6 @@ func (a *App) OnReady() {
 	a.mBattery.Disable()
 	a.mBattery.Hide()
 	a.mEqParent = systray.AddMenuItem("EQ Preset", "Switch EQ")
-	a.mEqParent.Disable()
 	a.mEq[0] = a.mEqParent.AddSubMenuItem("Slot 1", "EQ Slot 1")
 	a.mEq[1] = a.mEqParent.AddSubMenuItem("Slot 2", "EQ Slot 2")
 	a.mEq[2] = a.mEqParent.AddSubMenuItem("Slot 3", "EQ Slot 3")

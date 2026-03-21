@@ -293,6 +293,14 @@ func (m *Monitor) pollHeadset(dev *hid.Device) {
 
 	online := len(resp) > 3 && resp[3] != 0
 
+	if hid.Verbose {
+		b3 := byte(0)
+		if len(resp) > 3 {
+			b3 = resp[3]
+		}
+		log.Printf("[monitor] 11 21 byte3=%d online=%v offlineCount=%d", b3, online, m.offlineCount)
+	}
+
 	m.mu.Lock()
 	var devInfo hid.DeviceInfo
 	for _, d := range m.known {
