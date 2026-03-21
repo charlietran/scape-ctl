@@ -218,6 +218,7 @@ func (a *App) setEq(slot int) {
 }
 
 func (a *App) updateEqCheck(slot int) {
+	a.mEqParent.SetTitle(fmt.Sprintf("EQ Preset: %d", slot))
 	for i := 0; i < 3; i++ {
 		if i+1 == slot {
 			a.mEq[i].Check()
