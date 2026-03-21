@@ -274,13 +274,11 @@ func (m *Monitor) ensureConnected() {
 	m.dev = dev
 }
 
-// pollHeadset does a fast dongle poll (11 21) for presence detection,
-// then a full status poll (f1 21) only if the headset is present.
+// pollHeadset queries headset status (f1 21) and sends keepalive.
 func (m *Monitor) pollHeadset(dev *hid.Device) {
-	// Fast presence check via dongle (responds instantly)
-	rid, payload := hid.BuildDonglePoll()
-	resp, err := dev.SendAndReceive(rid, payload, 100*time.Millisecond)
+	status, err := dev.GetStatus()
 	if err != nil {
+		// Connection may have gone bad — close and reconnect next tick
 		m.mu.Lock()
 		if m.dev == dev {
 			m.dev.Close()
@@ -289,9 +287,10 @@ func (m *Monitor) pollHeadset(dev *hid.Device) {
 		m.mu.Unlock()
 		return
 	}
-
-	// 11 21 response: byte 3 = headset present (0/1)
-	online := len(resp) > 3 && resp[3] != 0
+	if status == nil {
+		dev.SendKeepalive()
+		return
+	}
 
 	m.mu.Lock()
 	var devInfo hid.DeviceInfo
@@ -301,11 +300,11 @@ func (m *Monitor) pollHeadset(dev *hid.Device) {
 	}
 
 	// Emit power state change (including first poll)
-	if !m.headsetChecked || online != m.headsetOnline {
+	if !m.headsetChecked || status.Connected != m.headsetOnline {
 		m.headsetChecked = true
-		m.headsetOnline = online
+		m.headsetOnline = status.Connected
 		evtType := EventHeadsetPowerOn
-		if !online {
+		if !status.Connected {
 			evtType = EventHeadsetPowerOff
 		}
 		m.emit(Event{
@@ -314,22 +313,17 @@ func (m *Monitor) pollHeadset(dev *hid.Device) {
 			Timestamp: time.Now(),
 		})
 	}
-	m.mu.Unlock()
 
-	// Full status poll + keepalive only if headset is online
-	if online {
-		status, err := dev.GetStatus()
-		if err == nil && status != nil && status.Connected {
-			m.mu.Lock()
-			m.emit(Event{
-				Type:      EventHeadsetStatus,
-				Device:    devInfo,
-				Status:    status,
-				Timestamp: time.Now(),
-			})
-			m.mu.Unlock()
-		}
+	// Emit periodic status for UI updates
+	if status.Connected {
+		m.emit(Event{
+			Type:      EventHeadsetStatus,
+			Device:    devInfo,
+			Status:    status,
+			Timestamp: time.Now(),
+		})
 	}
+	m.mu.Unlock()
 
 	dev.SendKeepalive()
 }
