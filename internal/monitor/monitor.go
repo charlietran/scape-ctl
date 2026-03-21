@@ -1,5 +1,5 @@
 // Package monitor polls the USB bus for Fractal device connect/disconnect events
-// and polls headset status through the dongle.
+// and maintains a persistent HID connection for status polling.
 package monitor
 
 import (
@@ -54,9 +54,10 @@ type Monitor struct {
 	known          map[string]hid.DeviceInfo // path → info
 	subs           []chan Event              // fan-out subscriber channels
 	running        bool
-	headsetOnline  bool // last known headset power state
-	headsetChecked bool // true after first status poll
-	statusTicks    int  // counter for status polling interval
+	dev            *hid.Device // persistent HID connection
+	headsetOnline  bool        // last known headset power state
+	headsetChecked bool        // true after first status poll
+	pollCount      int         // tick counter for staggered operations
 }
 
 // New creates a monitor that polls at the given interval.
@@ -116,11 +117,23 @@ func (m *Monitor) Stop() {
 	}
 	close(m.stop)
 	m.running = false
+	if m.dev != nil {
+		m.dev.Close()
+		m.dev = nil
+	}
 	for _, ch := range m.subs {
 		close(ch)
 	}
 	m.subs = nil
 	log.Println("[monitor] stopped")
+}
+
+// Device returns the persistent HID connection, or nil if not connected.
+// The caller must not close the device.
+func (m *Monitor) Device() *hid.Device {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.dev
 }
 
 // KnownDevices returns paths of currently tracked devices.
@@ -150,12 +163,40 @@ func (m *Monitor) poll() {
 		case <-m.stop:
 			return
 		case <-ticker.C:
-			m.scan()
+			m.tick()
 		}
 	}
 }
 
-func (m *Monitor) scan() {
+func (m *Monitor) tick() {
+	// USB bus scan for dongle connect/disconnect (every tick)
+	m.scanBus()
+
+	m.mu.Lock()
+	hasDongle := len(m.known) > 0
+	m.mu.Unlock()
+
+	if !hasDongle {
+		return
+	}
+
+	// Ensure persistent connection is open
+	m.ensureConnected()
+
+	m.mu.Lock()
+	dev := m.dev
+	m.mu.Unlock()
+
+	if dev == nil {
+		return
+	}
+
+	// Poll headset status + keepalive every tick (~1s)
+	m.pollHeadsetStatus(dev)
+	dev.SendKeepalive()
+}
+
+func (m *Monitor) scanBus() {
 	devices, err := hid.Enumerate()
 	if err != nil {
 		log.Printf("[monitor] enumeration error: %v", err)
@@ -168,6 +209,7 @@ func (m *Monitor) scan() {
 	}
 
 	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	// Detect new dongle connections
 	for path, dev := range currentPaths {
@@ -175,7 +217,6 @@ func (m *Monitor) scan() {
 			log.Printf("[monitor] dongle connected: %s", dev)
 			m.known[path] = dev
 			m.headsetChecked = false
-			m.statusTicks = 0
 			m.emit(Event{
 				Type:      EventDongleConnected,
 				Device:    dev,
@@ -189,6 +230,11 @@ func (m *Monitor) scan() {
 		if _, exists := currentPaths[path]; !exists {
 			log.Printf("[monitor] dongle disconnected: %s", dev)
 			delete(m.known, path)
+			// Close persistent connection
+			if m.dev != nil {
+				m.dev.Close()
+				m.dev = nil
+			}
 			if m.headsetOnline {
 				m.headsetOnline = false
 				m.emit(Event{
@@ -205,43 +251,53 @@ func (m *Monitor) scan() {
 			})
 		}
 	}
-
-	// Poll headset status every 5 ticks (~5s at default 1s interval)
-	hasDongle := len(m.known) > 0
-	m.mu.Unlock()
-
-	if hasDongle {
-		m.statusTicks++
-		if m.statusTicks >= 5 {
-			m.statusTicks = 0
-			m.pollHeadsetStatus()
-		}
-	}
 }
 
-// pollHeadsetStatus opens the dongle, queries headset state, and emits events.
-func (m *Monitor) pollHeadsetStatus() {
+func (m *Monitor) ensureConnected() {
 	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.dev != nil {
+		return
+	}
+
 	var devInfo hid.DeviceInfo
 	for _, d := range m.known {
 		devInfo = d
 		break
 	}
-	m.mu.Unlock()
 
 	dev, err := hid.OpenPath(devInfo.Path)
 	if err != nil {
-		return // device busy or permission denied — skip this tick
+		return // permission denied or busy — retry next tick
 	}
-	status, err := dev.GetStatus()
-	dev.Close()
+	m.dev = dev
+}
 
-	if err != nil || status == nil {
+func (m *Monitor) pollHeadsetStatus(dev *hid.Device) {
+	status, err := dev.GetStatus()
+	if err != nil {
+		// Connection may have gone bad — close and reconnect next tick
+		m.mu.Lock()
+		if m.dev == dev {
+			m.dev.Close()
+			m.dev = nil
+		}
+		m.mu.Unlock()
+		return
+	}
+	if status == nil {
 		return
 	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	var devInfo hid.DeviceInfo
+	for _, d := range m.known {
+		devInfo = d
+		break
+	}
 
 	// Emit power state change (including first poll)
 	if !m.headsetChecked || status.Connected != m.headsetOnline {

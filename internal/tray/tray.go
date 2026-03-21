@@ -196,13 +196,12 @@ func (a *App) handleMonitorEvents() {
 	}
 }
 
-// sendCommand opens the device, runs a function, and closes it.
+// sendCommand runs a function on the monitor's persistent device connection.
 func (a *App) sendCommand(fn func(dev *hid.Device) error) error {
-	dev, err := hid.OpenFirst()
-	if err != nil {
-		return err
+	dev := a.mon.Device()
+	if dev == nil {
+		return fmt.Errorf("no device connected")
 	}
-	defer dev.Close()
 	return fn(dev)
 }
 
