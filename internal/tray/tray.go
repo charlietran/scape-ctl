@@ -177,7 +177,7 @@ func (a *App) handleMonitorEvents() {
 			a.mReceiver.SetTitle("USB Receiver: Connected")
 			a.mHeadset.SetTitle("Headset: Connected")
 			a.mHeadset.Show()
-			a.updateMicStatus(s.Muted)
+			a.updateMicStatus(s.BoomMicConnected, s.Muted)
 			if s.BatteryPercent >= 0 {
 				a.mBattery.SetTitle(fmt.Sprintf("Battery: %d%%", s.BatteryPercent))
 				a.mBattery.Show()
@@ -284,12 +284,16 @@ func (a *App) hideHeadsetControls() {
 	a.mMNCTog.Hide()
 }
 
-func (a *App) updateMicStatus(muted bool) {
-	if muted {
-		a.mMicMute.SetTitle("Headset Mic: Muted")
-	} else {
-		a.mMicMute.SetTitle("Headset Mic: Unmuted")
+func (a *App) updateMicStatus(boomMic, muted bool) {
+	mic := "Built-in"
+	if boomMic {
+		mic = "Boom"
 	}
+	state := "Unmuted"
+	if muted {
+		state = "Muted"
+	}
+	a.mMicMute.SetTitle(fmt.Sprintf("Headset Mic: %s, %s", mic, state))
 	a.mMicMute.Show()
 }
 
