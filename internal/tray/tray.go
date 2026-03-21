@@ -66,33 +66,28 @@ func (a *App) OnReady() {
 	systray.SetTooltip("Scape Control")
 	a.applyDisplay()
 
-	// ── Status section ──
+	// ── Receiver status ──
 	a.mReceiver = systray.AddMenuItem("Checking device status...", "Dongle status")
 	a.mReceiver.Disable()
-	a.mHeadset = systray.AddMenuItem("", "Headset status")
+
+	systray.AddSeparator()
+
+	// ── Headset section (all hidden until headset connects) ──
+	a.mHeadset = systray.AddMenuItem("Headset: Disconnected", "Headset status")
 	a.mHeadset.Disable()
-	a.mHeadset.Hide()
 	a.mMicMute = systray.AddMenuItem("", "Mic mute status (hardware)")
 	a.mMicMute.Disable()
 	a.mMicMute.Hide()
 	a.mBattery = systray.AddMenuItem("", "Battery level")
 	a.mBattery.Disable()
 	a.mBattery.Hide()
-
-	systray.AddSeparator()
-
-	// ── EQ presets ──
 	a.mEqParent = systray.AddMenuItem("EQ Preset", "Switch EQ")
 	a.mEq[0] = a.mEqParent.AddSubMenuItem("Slot 1", "EQ Slot 1")
 	a.mEq[1] = a.mEqParent.AddSubMenuItem("Slot 2", "EQ Slot 2")
 	a.mEq[2] = a.mEqParent.AddSubMenuItem("Slot 3", "EQ Slot 3")
 	a.mEqParent.Hide()
-
-	// ── Lighting ──
 	a.mLightTog = systray.AddMenuItem("RGB: Off", "Toggle RGB lighting")
 	a.mLightTog.Hide()
-
-	// ── Microphone ──
 	a.mMNCTog = systray.AddMenuItem("Mic Noise Cancellation: Off", "Toggle MNC")
 	a.mMNCTog.Hide()
 
@@ -161,15 +156,14 @@ func (a *App) handleMonitorEvents() {
 		case monitor.EventDongleConnected:
 			a.mReceiver.SetTitle("USB Receiver: Connected")
 			a.mHeadset.SetTitle("Headset: Checking...")
-			a.mHeadset.Show()
 
 		case monitor.EventDongleDisconnected:
 			a.mReceiver.SetTitle("USB Receiver: Disconnected")
+			a.mHeadset.SetTitle("Headset: Disconnected")
 			a.hideHeadsetControls()
 
 		case monitor.EventHeadsetPowerOn:
 			a.mHeadset.SetTitle("Headset: Connected")
-			a.mHeadset.Show()
 
 		case monitor.EventHeadsetPowerOff:
 			a.mHeadset.SetTitle("Headset: Disconnected")
@@ -282,7 +276,6 @@ func (a *App) toggleMNC() {
 }
 
 func (a *App) hideHeadsetControls() {
-	a.mHeadset.Hide()
 	a.mMicMute.Hide()
 	a.mBattery.Hide()
 	a.mEqParent.Hide()

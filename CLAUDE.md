@@ -53,6 +53,7 @@ On macOS: `brew install hidapi`. On Windows: hidapi is bundled by go-hid.
 - Keep the CLI subcommands in `main.go` thin — they should call into `internal/` packages.
 - Config file format is TOML. The canonical example is `config.example.toml`.
 - The `raw` and `sniff` CLI commands exist specifically for protocol discovery. Don't remove them.
+- Always run `make build` as its own separate step before committing. Never combine build and git commit in the same command.
 
 ## Dependencies
 
