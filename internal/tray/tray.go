@@ -24,6 +24,9 @@ var iconBlack []byte
 //go:embed icons/white.png
 var iconWhite []byte
 
+//go:embed icons/transparent.png
+var iconTransparent []byte
+
 // App holds the tray application state.
 type App struct {
 	cfg     *config.Config
@@ -328,7 +331,7 @@ func (a *App) applyDisplay() {
 		systray.SetIcon(iconWhite)
 		systray.SetTitle("")
 	case "text":
-		systray.SetIcon(nil)
+		systray.SetTemplateIcon(iconTransparent, iconTransparent)
 		systray.SetTitle(text)
 	default: // "black"
 		systray.SetIcon(iconBlack)
