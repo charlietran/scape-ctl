@@ -30,7 +30,6 @@ type App struct {
 	mEq       [3]*systray.MenuItem
 	mLightTog *systray.MenuItem
 	lightOn   bool
-	mDevices  *systray.MenuItem
 	mConfig   *systray.MenuItem
 	mQuit     *systray.MenuItem
 }
@@ -69,7 +68,6 @@ func (a *App) OnReady() {
 	systray.AddSeparator()
 
 	// ── Utility ──
-	a.mDevices = systray.AddMenuItem("List Devices", "Show connected HID devices")
 	a.mConfig = systray.AddMenuItem("Edit Config", "Open config file")
 
 	systray.AddSeparator()
@@ -127,8 +125,6 @@ func (a *App) handleClicks() {
 			a.setEq(3)
 		case <-a.mLightTog.ClickedCh:
 			a.toggleLight()
-		case <-a.mDevices.ClickedCh:
-			a.showDevices()
 		case <-a.mConfig.ClickedCh:
 			a.openConfig()
 		case <-a.mQuit.ClickedCh:
@@ -264,14 +260,6 @@ func (a *App) updateLightStatus(on bool) {
 	}
 }
 
-func (a *App) showDevices() {
-	info := hid.DumpDevices()
-	log.Println(info)
-	// Also try to show in a notification or dialog
-	if a.cfg.Settings.Notifications {
-		notify("Scape Devices", info)
-	}
-}
 
 func (a *App) openConfig() {
 	path := config.Path()
