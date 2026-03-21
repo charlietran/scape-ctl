@@ -14,12 +14,14 @@ import (
 	"github.com/definitelygames/scape-ctl/internal/config"
 	"github.com/definitelygames/scape-ctl/internal/hid"
 	"github.com/definitelygames/scape-ctl/internal/monitor"
+	"github.com/definitelygames/scape-ctl/internal/triggers"
 )
 
 // App holds the tray application state.
 type App struct {
 	cfg     *config.Config
 	mon     *monitor.Monitor
+	triggers *triggers.Runner
 	events  <-chan monitor.Event
 	device  *hid.Device
 	mu      sync.Mutex
@@ -31,15 +33,17 @@ type App struct {
 	mLightTog *systray.MenuItem
 	lightOn   bool
 	mConfig   *systray.MenuItem
+	mReload   *systray.MenuItem
 	mQuit     *systray.MenuItem
 }
 
 // New creates the tray app.
-func New(cfg *config.Config, mon *monitor.Monitor, events <-chan monitor.Event) *App {
+func New(cfg *config.Config, mon *monitor.Monitor, tr *triggers.Runner, events <-chan monitor.Event) *App {
 	return &App{
-		cfg:    cfg,
-		mon:    mon,
-		events: events,
+		cfg:      cfg,
+		mon:      mon,
+		triggers: tr,
+		events:   events,
 	}
 }
 
@@ -69,6 +73,7 @@ func (a *App) OnReady() {
 
 	// ── Utility ──
 	a.mConfig = systray.AddMenuItem("Edit Config", "Open config file")
+	a.mReload = systray.AddMenuItem("Reload Config", "Reload config from disk")
 
 	systray.AddSeparator()
 	a.mQuit = systray.AddMenuItem("Quit", "Exit scape-ctl")
@@ -127,6 +132,8 @@ func (a *App) handleClicks() {
 			a.toggleLight()
 		case <-a.mConfig.ClickedCh:
 			a.openConfig()
+		case <-a.mReload.ClickedCh:
+			a.reloadConfig()
 		case <-a.mQuit.ClickedCh:
 			systray.Quit()
 			return
@@ -260,6 +267,25 @@ func (a *App) updateLightStatus(on bool) {
 	}
 }
 
+
+func (a *App) reloadConfig() {
+	cfg, err := config.LoadErr()
+	if err != nil {
+		log.Printf("[tray] config reload error: %v", err)
+		notify("Scape Config Error", err.Error())
+		a.mReload.SetTitle("Reload Config (error!)")
+		return
+	}
+	a.mu.Lock()
+	a.cfg = cfg
+	a.mu.Unlock()
+	if a.triggers != nil {
+		a.triggers.Reload(cfg)
+	}
+	a.mReload.SetTitle("Reload Config")
+	log.Printf("[tray] config reloaded (%d triggers)", len(cfg.Triggers))
+	notify("Scape", fmt.Sprintf("Config reloaded (%d triggers)", len(cfg.Triggers)))
+}
 
 func (a *App) openConfig() {
 	path := config.Path()

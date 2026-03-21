@@ -22,6 +22,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -70,20 +71,30 @@ func Path() string {
 
 // Load reads config from disk, returning defaults if not found.
 func Load() *Config {
+	cfg, err := LoadErr()
+	if err != nil {
+		log.Printf("[config] %v, using defaults", err)
+		return DefaultConfig()
+	}
+	return cfg
+}
+
+// LoadErr reads config from disk, returning an error on parse failure.
+// Returns defaults (nil error) if the file doesn't exist.
+func LoadErr() (*Config, error) {
 	cfg := DefaultConfig()
 	data, err := os.ReadFile(Path())
 	if err != nil {
-		if !os.IsNotExist(err) {
-			log.Printf("[config] read error: %v, using defaults", err)
+		if os.IsNotExist(err) {
+			return cfg, nil
 		}
-		return cfg
+		return cfg, fmt.Errorf("read error: %w", err)
 	}
 	if err := json.Unmarshal(data, cfg); err != nil {
-		log.Printf("[config] parse error: %v, using defaults", err)
-		return DefaultConfig()
+		return nil, fmt.Errorf("parse error: %w", err)
 	}
 	log.Printf("[config] loaded from %s (%d triggers)", Path(), len(cfg.Triggers))
-	return cfg
+	return cfg, nil
 }
 
 // Save writes config to disk.

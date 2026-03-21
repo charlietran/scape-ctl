@@ -73,7 +73,7 @@ func main() {
 	triggerRunner := triggers.New(cfg)
 	go triggerRunner.Run(triggerEvents)
 
-	app := tray.New(cfg, mon, trayEvents)
+	app := tray.New(cfg, mon, triggerRunner, trayEvents)
 	systray.Run(app.OnReady, app.OnExit)
 }
 
