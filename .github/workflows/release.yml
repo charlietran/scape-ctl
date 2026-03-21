@@ -12,67 +12,103 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/charlietran/scape-ctl/builder:latest
-      credentials:
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            artifact: scape-ctl_linux_amd64
+            container: ghcr.io/charlietran/scape-ctl/builder:latest
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+            artifact: scape-ctl_darwin_arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            artifact: scape-ctl_windows_amd64
+
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container || '' }}
+
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Fix git safe directory
+      - name: Fix git safe directory (container only)
+        if: matrix.container
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Setup Go
+        if: ${{ !matrix.container }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Install Linux deps
+        if: matrix.goos == 'linux'
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends \
+            gcc pkg-config libhidapi-dev libudev-dev \
+            libayatana-appindicator3-dev libgtk-3-dev
+
+      - name: Install macOS deps
+        if: matrix.goos == 'darwin'
+        run: brew install hidapi
 
       - name: Get version from tag
         id: version
+        shell: bash
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
-      - name: Build all platforms
+      - name: Build
+        shell: bash
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          LDFLAGS="-s -w -X main.version=${VERSION}"
-          PKG=./cmd/scape-ctl
+          CGO_ENABLED=1 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -ldflags "-s -w -X main.version=${{ steps.version.outputs.version }}" \
+            -o ${{ matrix.artifact }}/${{ matrix.goos == 'windows' && 'scape-ctl.exe' || 'scape-ctl' }} \
+            ./cmd/scape-ctl
 
-          echo "Building linux/amd64..."
-          CGO_ENABLED=1 CC=gcc GOOS=linux GOARCH=amd64 \
-            go build -ldflags "${LDFLAGS}" -o dist/scape-ctl_linux_amd64/scape-ctl ${PKG}
-
-          echo "Building darwin/arm64..."
-          CGO_ENABLED=1 CC=zig-cc-darwin-arm64 GOOS=darwin GOARCH=arm64 \
-            go build -ldflags "${LDFLAGS}" -o dist/scape-ctl_darwin_arm64/scape-ctl ${PKG}
-
-          echo "Building windows/amd64..."
-          CGO_ENABLED=1 CC=zig-cc-windows-amd64 GOOS=windows GOARCH=amd64 \
-            go build -ldflags "${LDFLAGS}" -o dist/scape-ctl_windows_amd64/scape-ctl.exe ${PKG}
-
-      - name: Package archives
+      - name: Add extras to archive
+        shell: bash
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          cp README.md config.example.toml ${{ matrix.artifact }}/
+          if [ "${{ matrix.goos }}" = "linux" ]; then
+            cp 50-fractal.rules ${{ matrix.artifact }}/
+          fi
 
-          # Linux
-          cp README.md config.example.toml 50-fractal.rules dist/scape-ctl_linux_amd64/
-          tar -czf "dist/scape-ctl_${VERSION}_linux_amd64.tar.gz" -C dist scape-ctl_linux_amd64
+      - name: Package (tar.gz)
+        if: matrix.goos != 'windows'
+        run: tar -czf ${{ matrix.artifact }}.tar.gz ${{ matrix.artifact }}
 
-          # macOS
-          cp README.md config.example.toml dist/scape-ctl_darwin_arm64/
-          tar -czf "dist/scape-ctl_${VERSION}_darwin_arm64.tar.gz" -C dist scape-ctl_darwin_arm64
+      - name: Package (zip)
+        if: matrix.goos == 'windows'
+        shell: bash
+        run: 7z a ${{ matrix.artifact }}.zip ${{ matrix.artifact }}
 
-          # Windows
-          cp README.md config.example.toml dist/scape-ctl_windows_amd64/
-          cd dist && zip -r "scape-ctl_${VERSION}_windows_amd64.zip" scape-ctl_windows_amd64 && cd ..
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.${{ matrix.goos == 'windows' && 'zip' || 'tar.gz' }}
 
-          # Checksums
-          cd dist && sha256sum *.tar.gz *.zip > checksums.txt && cd ..
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: cd dist && sha256sum * > checksums.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           files: |
-            dist/*.tar.gz
-            dist/*.zip
-            dist/checksums.txt
+            dist/*
