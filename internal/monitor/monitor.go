@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/definitelygames/scape-ctl/internal/hid"
+	"github.com/charlietran/scape-ctl/internal/hid"
 )
 
 // EventType identifies what happened.

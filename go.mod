@@ -1,4 +1,4 @@
-module github.com/definitelygames/scape-ctl
+module github.com/charlietran/scape-ctl
 
 go 1.22
 

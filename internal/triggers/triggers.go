@@ -18,8 +18,8 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/definitelygames/scape-ctl/internal/config"
-	"github.com/definitelygames/scape-ctl/internal/monitor"
+	"github.com/charlietran/scape-ctl/internal/config"
+	"github.com/charlietran/scape-ctl/internal/monitor"
 )
 
 // Runner listens for monitor events and fires matching trigger scripts.

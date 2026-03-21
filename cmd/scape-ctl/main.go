@@ -26,11 +26,11 @@ import (
 
 	"github.com/getlantern/systray"
 
-	"github.com/definitelygames/scape-ctl/internal/config"
-	"github.com/definitelygames/scape-ctl/internal/hid"
-	"github.com/definitelygames/scape-ctl/internal/monitor"
-	"github.com/definitelygames/scape-ctl/internal/tray"
-	"github.com/definitelygames/scape-ctl/internal/triggers"
+	"github.com/charlietran/scape-ctl/internal/config"
+	"github.com/charlietran/scape-ctl/internal/hid"
+	"github.com/charlietran/scape-ctl/internal/monitor"
+	"github.com/charlietran/scape-ctl/internal/tray"
+	"github.com/charlietran/scape-ctl/internal/triggers"
 )
 
 func main() {

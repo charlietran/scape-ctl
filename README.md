@@ -65,7 +65,7 @@ tools/
 
 ```bash
 # Clone and build
-git clone https://github.com/definitelygames/scape-ctl
+git clone https://github.com/charlietran/scape-ctl
 cd scape-ctl
 make build
 
