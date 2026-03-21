@@ -158,6 +158,7 @@ func (a *App) handleMonitorEvents() {
 			if s == nil {
 				continue
 			}
+			a.mStatus.SetTitle(fmt.Sprintf("● %s", evt.Device.ProductName))
 			if s.BatteryPercent >= 0 {
 				icon := "🔋"
 				if s.Charging {
