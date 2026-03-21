@@ -25,14 +25,14 @@ type App struct {
 	mu      sync.Mutex
 
 	// Menu items
-	mStatus    *systray.MenuItem
-	mBattery   *systray.MenuItem
-	mEq        [3]*systray.MenuItem
-	mLightOff  *systray.MenuItem
-	mLightOn   *systray.MenuItem
-	mDevices   *systray.MenuItem
-	mConfig    *systray.MenuItem
-	mQuit      *systray.MenuItem
+	mStatus   *systray.MenuItem
+	mBattery  *systray.MenuItem
+	mEq       [3]*systray.MenuItem
+	mLightTog *systray.MenuItem
+	lightOn   bool
+	mDevices  *systray.MenuItem
+	mConfig   *systray.MenuItem
+	mQuit     *systray.MenuItem
 }
 
 // New creates the tray app.
@@ -64,9 +64,7 @@ func (a *App) OnReady() {
 	a.mEq[2] = mEqParent.AddSubMenuItem("Slot 3", "EQ Slot 3")
 
 	// ── Lighting ──
-	mLight := systray.AddMenuItem("Lighting", "Toggle lighting")
-	a.mLightOff = mLight.AddSubMenuItem("Off", "Turn off LEDs")
-	a.mLightOn = mLight.AddSubMenuItem("On (last mode)", "Turn on LEDs")
+	a.mLightTog = systray.AddMenuItem("RGB: Off", "Toggle RGB lighting")
 
 	systray.AddSeparator()
 
@@ -127,10 +125,8 @@ func (a *App) handleClicks() {
 			a.setEq(2)
 		case <-a.mEq[2].ClickedCh:
 			a.setEq(3)
-		case <-a.mLightOff.ClickedCh:
-			a.setLight(false)
-		case <-a.mLightOn.ClickedCh:
-			a.setLight(true)
+		case <-a.mLightTog.ClickedCh:
+			a.toggleLight()
 		case <-a.mDevices.ClickedCh:
 			a.showDevices()
 		case <-a.mConfig.ClickedCh:
@@ -200,6 +196,11 @@ func (a *App) pollStatus() {
 			a.mBattery.SetTitle(fmt.Sprintf("%s Battery: %d%%", icon, status.BatteryPercent))
 		}
 		a.mStatus.SetTitle(fmt.Sprintf("● %s", dev.Info.ProductName))
+		a.updateEqCheck(status.EqSlot)
+		a.mu.Lock()
+		a.lightOn = status.LightSlot > 0
+		a.mu.Unlock()
+		a.updateLightStatus(status.LightSlot > 0)
 	}
 }
 
@@ -216,12 +217,24 @@ func (a *App) setEq(slot int) {
 		log.Printf("[tray] set EQ slot %d error: %v", slot, err)
 	} else {
 		log.Printf("[tray] switched to EQ slot %d", slot)
+		a.updateEqCheck(slot)
 	}
 }
 
-func (a *App) setLight(on bool) {
+func (a *App) updateEqCheck(slot int) {
+	for i := 0; i < 3; i++ {
+		if i+1 == slot {
+			a.mEq[i].Check()
+		} else {
+			a.mEq[i].Uncheck()
+		}
+	}
+}
+
+func (a *App) toggleLight() {
 	a.mu.Lock()
 	dev := a.device
+	on := !a.lightOn
 	a.mu.Unlock()
 
 	if dev == nil {
@@ -233,11 +246,21 @@ func (a *App) setLight(on bool) {
 	if err := dev.Send(rid, payload); err != nil {
 		log.Printf("[tray] set lighting error: %v", err)
 	} else {
-		state := "off"
-		if on {
-			state = "on"
-		}
-		log.Printf("[tray] RGB %s", state)
+		a.mu.Lock()
+		a.lightOn = on
+		a.mu.Unlock()
+		a.updateLightStatus(on)
+		log.Printf("[tray] RGB %v", on)
+	}
+}
+
+func (a *App) updateLightStatus(on bool) {
+	if on {
+		a.mLightTog.SetTitle("RGB: On")
+		a.mLightTog.Check()
+	} else {
+		a.mLightTog.SetTitle("RGB: Off")
+		a.mLightTog.Uncheck()
 	}
 }
 
