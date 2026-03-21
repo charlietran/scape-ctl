@@ -38,7 +38,7 @@ jobs:
           PKG=./cmd/scape-ctl
 
           echo "Building linux/amd64..."
-          CGO_ENABLED=1 CC=zig-cc-linux-amd64 GOOS=linux GOARCH=amd64 \
+          CGO_ENABLED=1 CC=gcc GOOS=linux GOARCH=amd64 \
             go build -ldflags "${LDFLAGS}" -o dist/scape-ctl_linux_amd64/scape-ctl ${PKG}
 
           echo "Building darwin/arm64..."
