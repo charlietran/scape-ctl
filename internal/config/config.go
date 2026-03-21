@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
 )
@@ -83,21 +84,44 @@ func LoadErr() (*Config, error) {
 	return cfg, nil
 }
 
-// Save writes config to disk, preserving comments for new files.
-func Save(cfg *Config) error {
-	dir := Dir()
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	data, err := toml.Marshal(cfg)
+// SetValue updates a single key in the config file in-place, preserving
+// comments and formatting. If the key exists, its value is replaced.
+// If not, it's appended under [settings].
+func SetValue(key, value string) error {
+	path := Path()
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("read config: %w", err)
 	}
-	if err := os.WriteFile(Path(), data, 0o644); err != nil {
-		return err
+
+	quoted := fmt.Sprintf("%s = %q", key, value)
+	lines := strings.Split(string(data), "\n")
+	found := false
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, key+" ") || strings.HasPrefix(trimmed, key+"=") {
+			lines[i] = quoted
+			found = true
+			break
+		}
 	}
-	log.Printf("[config] saved to %s", Path())
-	return nil
+
+	if !found {
+		// Append after [settings] header
+		for i, line := range lines {
+			if strings.TrimSpace(line) == "[settings]" {
+				lines = append(lines[:i+1], append([]string{quoted}, lines[i+1:]...)...)
+				found = true
+				break
+			}
+		}
+	}
+
+	if !found {
+		lines = append(lines, quoted)
+	}
+
+	return os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644)
 }
 
 // defaultConfigTOML is the commented default config written on first run.

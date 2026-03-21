@@ -366,10 +366,9 @@ func (a *App) setDisplay(mode string) {
 		oldMode = "black"
 	}
 	a.cfg.Settings.TrayDisplay = mode
-	cfg := a.cfg
 	a.mu.Unlock()
 
-	if err := config.Save(cfg); err != nil {
+	if err := config.SetValue("tray_display", mode); err != nil {
 		log.Printf("[tray] failed to save display setting: %v", err)
 		return
 	}
