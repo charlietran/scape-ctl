@@ -5,6 +5,8 @@ PKG     := ./cmd/scape-ctl
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -s -w -X main.version=$(VERSION)
 
+export GOCACHE ?= $(shell echo $${TMPDIR:-/tmp})/go-cache
+
 build:
 	go build -ldflags "$(LDFLAGS)" -o $(BINARY) $(PKG)
 
