@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"runtime"
 	"sync"
@@ -24,8 +25,6 @@ var iconBlack []byte
 //go:embed icons/white.png
 var iconWhite []byte
 
-//go:embed icons/transparent.png
-var iconTransparent []byte
 
 // App holds the tray application state.
 type App struct {
@@ -331,7 +330,6 @@ func (a *App) applyDisplay() {
 		systray.SetIcon(iconWhite)
 		systray.SetTitle("")
 	case "text":
-		systray.SetTemplateIcon(iconTransparent, iconTransparent)
 		systray.SetTitle(text)
 	default: // "black"
 		systray.SetIcon(iconBlack)
@@ -362,16 +360,43 @@ func (a *App) updateDispCheck() {
 
 func (a *App) setDisplay(mode string) {
 	a.mu.Lock()
+	oldMode := a.cfg.Settings.TrayDisplay
+	if oldMode == "" {
+		oldMode = "black"
+	}
 	a.cfg.Settings.TrayDisplay = mode
 	cfg := a.cfg
 	a.mu.Unlock()
 
-	a.applyDisplay()
-	a.updateDispCheck()
-
 	if err := config.Save(cfg); err != nil {
 		log.Printf("[tray] failed to save display setting: %v", err)
+		return
 	}
+
+	// Switching to/from text mode requires a restart since systray
+	// can't remove an icon once set (and can't add one after startup).
+	needsRestart := (oldMode == "text") != (mode == "text")
+	if needsRestart {
+		log.Printf("[tray] display mode changed to %s, restarting...", mode)
+		a.restart()
+		return
+	}
+
+	a.applyDisplay()
+	a.updateDispCheck()
+}
+
+func (a *App) restart() {
+	exe, err := os.Executable()
+	if err != nil {
+		log.Printf("[tray] failed to get executable path: %v", err)
+		return
+	}
+	if err := exec.Command(exe).Start(); err != nil {
+		log.Printf("[tray] failed to restart: %v", err)
+		return
+	}
+	systray.Quit()
 }
 
 func (a *App) openConfigDir() {
