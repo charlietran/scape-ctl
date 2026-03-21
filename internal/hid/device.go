@@ -198,7 +198,7 @@ func (d *Device) SendAndReceive(reportID byte, payload []byte, timeout time.Dura
 
 // ── High-level operations ───────────────────────────
 
-const defaultTimeout = 500 * time.Millisecond
+const defaultTimeout = 100 * time.Millisecond
 
 // GetStatus sends f1 21 and parses the status blob (battery, connection, etc.).
 // A timeout means the headset is unreachable (off/out of range) — returned as
