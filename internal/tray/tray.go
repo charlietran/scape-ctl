@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"runtime"
 	"sync"
-	"time"
 
 	"github.com/getlantern/systray"
 
@@ -28,12 +27,11 @@ var iconWhite []byte
 
 // App holds the tray application state.
 type App struct {
-	cfg     *config.Config
-	mon     *monitor.Monitor
+	cfg      *config.Config
+	mon      *monitor.Monitor
 	triggers *triggers.Runner
-	events  <-chan monitor.Event
-	device  *hid.Device
-	mu      sync.Mutex
+	events   <-chan monitor.Event
+	mu       sync.Mutex
 
 	// Menu items
 	mStatus      *systray.MenuItem
@@ -100,42 +98,14 @@ func (a *App) OnReady() {
 	// Start click handlers
 	go a.handleClicks()
 
-	// Start status polling
-	go a.pollStatus()
-
-	// Listen for monitor events to update tray
+	// Listen for monitor events to update tray UI
 	go a.handleMonitorEvents()
-
-	// Try connecting to a device immediately
-	go a.tryConnect()
 }
 
 // OnExit is called when the tray app is shutting down.
 func (a *App) OnExit() {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.device != nil {
-		a.device.Close()
-	}
 	a.mon.Stop()
 	log.Println("[tray] exiting")
-}
-
-func (a *App) tryConnect() {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	if a.device != nil {
-		return // already connected
-	}
-
-	dev, err := hid.OpenFirst()
-	if err != nil {
-		log.Printf("[tray] no device available: %v", err)
-		return
-	}
-	a.device = dev
-	a.mStatus.SetTitle(fmt.Sprintf("● %s", dev.Info.ProductName))
 }
 
 func (a *App) handleClicks() {
@@ -170,90 +140,54 @@ func (a *App) handleMonitorEvents() {
 	for evt := range a.events {
 		switch evt.Type {
 		case monitor.EventDongleConnected:
-			log.Printf("[tray] dongle connected: %s", evt.Device)
 			a.mStatus.SetTitle(fmt.Sprintf("● %s", evt.Device.ProductName))
-			go a.tryConnect()
 
 		case monitor.EventDongleDisconnected:
-			log.Printf("[tray] dongle disconnected: %s", evt.Device)
-			a.mu.Lock()
-			if a.device != nil {
-				a.device.Close()
-				a.device = nil
-			}
-			a.mu.Unlock()
 			a.mStatus.SetTitle("⊘ No device")
 			a.mBattery.SetTitle("Battery: --")
 
 		case monitor.EventHeadsetPowerOn:
-			log.Printf("[tray] headset powered on")
 			a.mStatus.SetTitle(fmt.Sprintf("● %s", evt.Device.ProductName))
 
 		case monitor.EventHeadsetPowerOff:
-			log.Printf("[tray] headset powered off")
 			a.mStatus.SetTitle("● Dongle connected (headset off)")
 			a.mBattery.SetTitle("Battery: --")
+
+		case monitor.EventHeadsetStatus:
+			s := evt.Status
+			if s == nil {
+				continue
+			}
+			if s.BatteryPercent >= 0 {
+				icon := "🔋"
+				if s.Charging {
+					icon = "⚡"
+				}
+				a.mBattery.SetTitle(fmt.Sprintf("%s Battery: %d%%", icon, s.BatteryPercent))
+			}
+			a.updateEqCheck(s.EqSlot)
+			a.mu.Lock()
+			a.lightOn = s.LightSlot > 0
+			a.mu.Unlock()
+			a.updateLightStatus(s.LightSlot > 0)
 		}
 	}
 }
 
-func (a *App) pollStatus() {
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	for range ticker.C {
-		a.mu.Lock()
-		dev := a.device
-		a.mu.Unlock()
-
-		if dev == nil {
-			continue
-		}
-
-		status, err := dev.GetStatus()
-		if err != nil {
-			log.Printf("[tray] status poll error: %v", err)
-			continue
-		}
-		if status == nil {
-			continue
-		}
-
-		// Feed headset power state to monitor (emits events on change)
-		a.mon.SetHeadsetOnline(status.Connected)
-
-		if !status.Connected {
-			a.mStatus.SetTitle("● Dongle connected (headset off)")
-			a.mBattery.SetTitle("Battery: --")
-			continue
-		}
-
-		if status.BatteryPercent >= 0 {
-			icon := "🔋"
-			if status.Charging {
-				icon = "⚡"
-			}
-			a.mBattery.SetTitle(fmt.Sprintf("%s Battery: %d%%", icon, status.BatteryPercent))
-		}
-		a.mStatus.SetTitle(fmt.Sprintf("● %s", dev.Info.ProductName))
-		a.updateEqCheck(status.EqSlot)
-		a.mu.Lock()
-		a.lightOn = status.LightSlot > 0
-		a.mu.Unlock()
-		a.updateLightStatus(status.LightSlot > 0)
+// sendCommand opens the device, runs a function, and closes it.
+func (a *App) sendCommand(fn func(dev *hid.Device) error) error {
+	dev, err := hid.OpenFirst()
+	if err != nil {
+		return err
 	}
+	defer dev.Close()
+	return fn(dev)
 }
 
 func (a *App) setEq(slot int) {
-	a.mu.Lock()
-	dev := a.device
-	a.mu.Unlock()
-
-	if dev == nil {
-		log.Println("[tray] no device connected")
-		return
-	}
-	if err := dev.SetActiveEq(slot); err != nil {
+	if err := a.sendCommand(func(dev *hid.Device) error {
+		return dev.SetActiveEq(slot)
+	}); err != nil {
 		log.Printf("[tray] set EQ slot %d error: %v", slot, err)
 	} else {
 		log.Printf("[tray] switched to EQ slot %d", slot)
@@ -273,17 +207,13 @@ func (a *App) updateEqCheck(slot int) {
 
 func (a *App) toggleLight() {
 	a.mu.Lock()
-	dev := a.device
 	on := !a.lightOn
 	a.mu.Unlock()
 
-	if dev == nil {
-		log.Println("[tray] no device connected")
-		return
-	}
-
-	rid, payload := hid.BuildSetLightOn(on)
-	if err := dev.Send(rid, payload); err != nil {
+	if err := a.sendCommand(func(dev *hid.Device) error {
+		rid, payload := hid.BuildSetLightOn(on)
+		return dev.Send(rid, payload)
+	}); err != nil {
 		log.Printf("[tray] set lighting error: %v", err)
 	} else {
 		a.mu.Lock()

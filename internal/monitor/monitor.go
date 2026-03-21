@@ -1,5 +1,5 @@
 // Package monitor polls the USB bus for Fractal device connect/disconnect events
-// and tracks headset power state.
+// and polls headset status through the dongle.
 package monitor
 
 import (
@@ -18,6 +18,7 @@ const (
 	EventDongleDisconnected                  // USB dongle unplugged
 	EventHeadsetPowerOn                      // Headset powered on (detected via dongle)
 	EventHeadsetPowerOff                     // Headset powered off or out of range
+	EventHeadsetStatus                       // Periodic headset status update
 )
 
 func (e EventType) String() string {
@@ -30,6 +31,8 @@ func (e EventType) String() string {
 		return "HeadsetPowerOn"
 	case EventHeadsetPowerOff:
 		return "HeadsetPowerOff"
+	case EventHeadsetStatus:
+		return "HeadsetStatus"
 	default:
 		return "Unknown"
 	}
@@ -39,10 +42,11 @@ func (e EventType) String() string {
 type Event struct {
 	Type      EventType
 	Device    hid.DeviceInfo
+	Status    *hid.DeviceStatus // non-nil for HeadsetStatus events
 	Timestamp time.Time
 }
 
-// Monitor watches for Fractal HID devices and headset power state.
+// Monitor watches for Fractal HID devices and polls headset status.
 type Monitor struct {
 	interval       time.Duration
 	stop           chan struct{}
@@ -51,7 +55,8 @@ type Monitor struct {
 	subs           []chan Event              // fan-out subscriber channels
 	running        bool
 	headsetOnline  bool // last known headset power state
-	headsetChecked bool // true after first SetHeadsetOnline call
+	headsetChecked bool // true after first status poll
+	statusTicks    int  // counter for status polling interval
 }
 
 // New creates a monitor that polls at the given interval.
@@ -114,41 +119,6 @@ func (m *Monitor) Stop() {
 	log.Println("[monitor] stopped")
 }
 
-// SetHeadsetOnline reports the headset power state to the monitor.
-// Call this from status polling (e.g. tray pollStatus). The monitor
-// emits HeadsetPowerOn/Off events when the state changes.
-func (m *Monitor) SetHeadsetOnline(online bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if !m.headsetChecked {
-		m.headsetChecked = true
-		m.headsetOnline = online
-		return
-	}
-
-	if online == m.headsetOnline {
-		return
-	}
-	m.headsetOnline = online
-
-	var devInfo hid.DeviceInfo
-	for _, d := range m.known {
-		devInfo = d
-		break
-	}
-
-	evtType := EventHeadsetPowerOn
-	if !online {
-		evtType = EventHeadsetPowerOff
-	}
-	m.emit(Event{
-		Type:      evtType,
-		Device:    devInfo,
-		Timestamp: time.Now(),
-	})
-}
-
 // KnownDevices returns paths of currently tracked devices.
 func (m *Monitor) KnownDevices() []hid.DeviceInfo {
 	m.mu.Lock()
@@ -194,7 +164,6 @@ func (m *Monitor) scan() {
 	}
 
 	m.mu.Lock()
-	defer m.mu.Unlock()
 
 	// Detect new dongle connections
 	for path, dev := range currentPaths {
@@ -202,6 +171,7 @@ func (m *Monitor) scan() {
 			log.Printf("[monitor] dongle connected: %s", dev)
 			m.known[path] = dev
 			m.headsetChecked = false
+			m.statusTicks = 0
 			m.emit(Event{
 				Type:      EventDongleConnected,
 				Device:    dev,
@@ -230,6 +200,75 @@ func (m *Monitor) scan() {
 				Timestamp: time.Now(),
 			})
 		}
+	}
+
+	// Poll headset status every 5 ticks (~5s at default 1s interval)
+	hasDongle := len(m.known) > 0
+	m.mu.Unlock()
+
+	if hasDongle {
+		m.statusTicks++
+		if m.statusTicks >= 5 {
+			m.statusTicks = 0
+			m.pollHeadsetStatus()
+		}
+	}
+}
+
+// pollHeadsetStatus opens the dongle, queries headset state, and emits events.
+func (m *Monitor) pollHeadsetStatus() {
+	m.mu.Lock()
+	var devInfo hid.DeviceInfo
+	for _, d := range m.known {
+		devInfo = d
+		break
+	}
+	m.mu.Unlock()
+
+	dev, err := hid.OpenPath(devInfo.Path)
+	if err != nil {
+		return // device busy or permission denied — skip this tick
+	}
+	status, err := dev.GetStatus()
+	dev.Close()
+
+	if err != nil || status == nil {
+		return
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Detect headset power state change
+	if !m.headsetChecked {
+		m.headsetChecked = true
+		m.headsetOnline = status.Connected
+		if status.Connected {
+			log.Printf("[monitor] headset is online")
+		} else {
+			log.Printf("[monitor] headset is offline")
+		}
+	} else if status.Connected != m.headsetOnline {
+		m.headsetOnline = status.Connected
+		evtType := EventHeadsetPowerOn
+		if !status.Connected {
+			evtType = EventHeadsetPowerOff
+		}
+		m.emit(Event{
+			Type:      evtType,
+			Device:    devInfo,
+			Timestamp: time.Now(),
+		})
+	}
+
+	// Emit periodic status for UI updates (battery, EQ, etc.)
+	if status.Connected {
+		m.emit(Event{
+			Type:      EventHeadsetStatus,
+			Device:    devInfo,
+			Status:    status,
+			Timestamp: time.Now(),
+		})
 	}
 }
 
