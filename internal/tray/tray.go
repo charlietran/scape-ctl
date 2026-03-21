@@ -229,18 +229,15 @@ func (a *App) setLight(on bool) {
 		return
 	}
 
-	cfg := &hid.LightingConfig{
-		Mode:       hid.LightOff,
-		Brightness: 0,
-	}
-	if on {
-		cfg.Mode = hid.LightStatic
-		cfg.Brightness = 100
-		cfg.Color = hid.RGB{R: 120, G: 140, B: 255}
-	}
-
-	if err := dev.SetLighting(cfg); err != nil {
+	rid, payload := hid.BuildSetLightOn(on)
+	if err := dev.Send(rid, payload); err != nil {
 		log.Printf("[tray] set lighting error: %v", err)
+	} else {
+		state := "off"
+		if on {
+			state = "on"
+		}
+		log.Printf("[tray] RGB %s", state)
 	}
 }
 

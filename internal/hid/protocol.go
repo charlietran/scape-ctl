@@ -274,13 +274,25 @@ func BuildSetBiquad(numDrivers, driver, band byte, coeffs BiquadCoeffs) (byte, [
 }
 
 func BuildGetLighting() (byte, []byte) {
-	// TODO: lighting commands not yet observed in sniffer log
 	return buildCmd(CmdStatusPoll[:])
 }
 
+// BuildSetLightOn toggles RGB lighting on (slot 1) or off (slot 0).
+// Sends [0xA4, 0x04, slot] — the device's selectEffectSlot command.
+func BuildSetLightOn(on bool) (byte, []byte) {
+	buf := make([]byte, ReportSize)
+	buf[0] = CmdConfigApply[0] // 0xA4
+	buf[1] = CmdConfigApply[1] // 0x04
+	if on {
+		buf[2] = 0x01
+	}
+	return ReportID, buf
+}
+
 func BuildSetLighting(cfg *LightingConfig) (byte, []byte) {
-	// TODO: lighting commands not yet observed in sniffer log
-	return buildCmd(CmdStatusPoll[:])
+	// Full lighting config requires a4 bulk transfer (theme upload).
+	// For simple on/off, use BuildSetLightOn instead.
+	return BuildSetLightOn(cfg.Mode != LightOff)
 }
 
 func BuildSetMic(cfg *MicConfig) (byte, []byte) {
