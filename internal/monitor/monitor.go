@@ -191,16 +191,9 @@ func (m *Monitor) tick() {
 		return
 	}
 
-	// Poll headset status + keepalive every tick (~1s)
-	m.pollHeadsetStatus(dev)
-
-	// pollHeadsetStatus may have closed dev on error — recheck
-	m.mu.Lock()
-	stillOpen := m.dev == dev
-	m.mu.Unlock()
-	if stillOpen {
-		dev.SendKeepalive()
-	}
+	// Quick dongle poll (11 21) for fast headset presence detection,
+	// then full status (f1 21) only if headset is present, then keepalive.
+	m.pollHeadset(dev)
 }
 
 func (m *Monitor) scanBus() {
@@ -281,10 +274,13 @@ func (m *Monitor) ensureConnected() {
 	m.dev = dev
 }
 
-func (m *Monitor) pollHeadsetStatus(dev *hid.Device) {
-	status, err := dev.GetStatus()
+// pollHeadset does a fast dongle poll (11 21) for presence detection,
+// then a full status poll (f1 21) only if the headset is present.
+func (m *Monitor) pollHeadset(dev *hid.Device) {
+	// Fast presence check via dongle (responds instantly)
+	rid, payload := hid.BuildDonglePoll()
+	resp, err := dev.SendAndReceive(rid, payload, 100*time.Millisecond)
 	if err != nil {
-		// Connection may have gone bad — close and reconnect next tick
 		m.mu.Lock()
 		if m.dev == dev {
 			m.dev.Close()
@@ -293,13 +289,11 @@ func (m *Monitor) pollHeadsetStatus(dev *hid.Device) {
 		m.mu.Unlock()
 		return
 	}
-	if status == nil {
-		return
-	}
+
+	// 11 21 response: byte 3 = headset present (0/1)
+	online := len(resp) > 3 && resp[3] != 0
 
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	var devInfo hid.DeviceInfo
 	for _, d := range m.known {
 		devInfo = d
@@ -307,11 +301,11 @@ func (m *Monitor) pollHeadsetStatus(dev *hid.Device) {
 	}
 
 	// Emit power state change (including first poll)
-	if !m.headsetChecked || status.Connected != m.headsetOnline {
+	if !m.headsetChecked || online != m.headsetOnline {
 		m.headsetChecked = true
-		m.headsetOnline = status.Connected
+		m.headsetOnline = online
 		evtType := EventHeadsetPowerOn
-		if !status.Connected {
+		if !online {
 			evtType = EventHeadsetPowerOff
 		}
 		m.emit(Event{
@@ -320,16 +314,24 @@ func (m *Monitor) pollHeadsetStatus(dev *hid.Device) {
 			Timestamp: time.Now(),
 		})
 	}
+	m.mu.Unlock()
 
-	// Emit periodic status for UI updates (battery, EQ, etc.)
-	if status.Connected {
-		m.emit(Event{
-			Type:      EventHeadsetStatus,
-			Device:    devInfo,
-			Status:    status,
-			Timestamp: time.Now(),
-		})
+	// Full status poll + keepalive only if headset is online
+	if online {
+		status, err := dev.GetStatus()
+		if err == nil && status != nil && status.Connected {
+			m.mu.Lock()
+			m.emit(Event{
+				Type:      EventHeadsetStatus,
+				Device:    devInfo,
+				Status:    status,
+				Timestamp: time.Now(),
+			})
+			m.mu.Unlock()
+		}
 	}
+
+	dev.SendKeepalive()
 }
 
 func (m *Monitor) emit(evt Event) {
