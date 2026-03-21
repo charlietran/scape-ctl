@@ -294,7 +294,7 @@ func ParseStatus(data []byte) *DeviceStatus {
 	if s.Connected {
 		s.BatteryPercent = int(data[14])
 		s.BoomMicConnected = data[3] != 0x00 // hall sensor: nonzero = boom mic attached
-		s.Muted = data[4] == 0x00
+		s.Muted = data[4] != 0x00 // 1 = muted (boom mic up)
 		s.EqSlot = int(data[5])
 		s.LightSlot = int(data[6])
 		s.HallSensor = int(data[13])
