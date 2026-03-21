@@ -1,49 +1,47 @@
 // Package config handles loading/saving the scape-ctl configuration.
 //
-// Config file location: ~/.config/scape-ctl/config.toml
+// Config file location: ~/.config/scape-ctl/config.json
 //
 // Example:
 //
-//	[settings]
-//	poll_interval_ms = 1000
-//	notifications = true
-//
-//	[[triggers]]
-//	event = "Connected"
-//	script = "notify-send 'Scape' 'Headset connected'"
-//	label = "Connect notification"
-//	enabled = true
-//
-//	[[triggers]]
-//	event = "Disconnected"
-//	script = "/home/user/scripts/headset-off.sh"
-//	label = "Disconnect handler"
-//	enabled = true
+//	{
+//	  "settings": {
+//	    "poll_interval_ms": 1000,
+//	    "notifications": true
+//	  },
+//	  "triggers": [
+//	    {
+//	      "event": "Connected",
+//	      "script": "notify-send 'Scape' 'Headset connected'",
+//	      "label": "Connect notification",
+//	      "enabled": true
+//	    }
+//	  ]
+//	}
 package config
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 	"path/filepath"
-
-	toml "github.com/pelletier/go-toml/v2"
 )
 
 type Config struct {
-	Settings Settings       `toml:"settings"`
-	Triggers []TriggerRule  `toml:"triggers"`
+	Settings Settings      `json:"settings"`
+	Triggers []TriggerRule `json:"triggers,omitempty"`
 }
 
 type Settings struct {
-	PollIntervalMS int  `toml:"poll_interval_ms"`
-	Notifications  bool `toml:"notifications"`
+	PollIntervalMS int  `json:"poll_interval_ms"`
+	Notifications  bool `json:"notifications"`
 }
 
 type TriggerRule struct {
-	Event   string `toml:"event"`   // "Connected" or "Disconnected"
-	Script  string `toml:"script"`  // Shell command or script path
-	Label   string `toml:"label"`   // Human-readable name
-	Enabled bool   `toml:"enabled"`
+	Event   string `json:"event"`   // "Connected" or "Disconnected"
+	Script  string `json:"script"`  // Shell command or script path
+	Label   string `json:"label"`   // Human-readable name
+	Enabled bool   `json:"enabled"`
 }
 
 func DefaultConfig() *Config {
@@ -67,7 +65,7 @@ func Dir() string {
 
 // Path returns the config file path.
 func Path() string {
-	return filepath.Join(Dir(), "config.toml")
+	return filepath.Join(Dir(), "config.json")
 }
 
 // Load reads config from disk, returning defaults if not found.
@@ -80,7 +78,7 @@ func Load() *Config {
 		}
 		return cfg
 	}
-	if err := toml.Unmarshal(data, cfg); err != nil {
+	if err := json.Unmarshal(data, cfg); err != nil {
 		log.Printf("[config] parse error: %v, using defaults", err)
 		return DefaultConfig()
 	}
@@ -94,10 +92,11 @@ func Save(cfg *Config) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	data, err := toml.Marshal(cfg)
+	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
 	}
+	data = append(data, '\n')
 	if err := os.WriteFile(Path(), data, 0o644); err != nil {
 		return err
 	}

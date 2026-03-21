@@ -15,7 +15,7 @@ internal/
   hid/device.go                  hidapi wrapper (open/send/receive via go-hid)
   monitor/monitor.go             USB bus poller, emits connect/disconnect events
   triggers/triggers.go           Runs user shell scripts on device events
-  config/config.go               TOML config (~/.config/scape-ctl/config.toml)
+  config/config.go               JSON config (~/.config/scape-ctl/config.json)
   tray/tray.go                   System tray menu and click handlers
 tools/webhid_sniffer.js          Chrome DevTools script for capturing HID traffic
 ```
@@ -51,14 +51,14 @@ On macOS: `brew install hidapi`. On Windows: hidapi is bundled by go-hid.
 - All `TODO(sniff)` comments mark protocol bytes that need to be filled in from reverse engineering. Search for these when updating the protocol.
 - The `internal/hid/protocol.go` file is the single source of truth for the wire format. Report builders return `(reportID, payload)` tuples. Parsers take `[]byte` and return typed structs.
 - Keep the CLI subcommands in `main.go` thin — they should call into `internal/` packages.
-- Config file format is TOML. The canonical example is `config.example.toml`.
+- Config file format is JSON. The canonical example is `config.example.json`.
 - The `raw` and `sniff` CLI commands exist specifically for protocol discovery. Don't remove them.
 
 ## Dependencies
 
 - `github.com/sstallion/go-hid` — Go bindings for hidapi (CGO, links libhidapi)
 - `github.com/getlantern/systray` — Cross-platform system tray
-- `github.com/pelletier/go-toml/v2` — TOML parser
+- `encoding/json` — JSON config (stdlib, no external dependency)
 
 CGO is required because go-hid wraps the C hidapi library. Cross-compilation needs the target platform's hidapi headers/libs.
 
