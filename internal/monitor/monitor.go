@@ -89,12 +89,16 @@ func (m *Monitor) Start() {
 	m.running = true
 	m.mu.Unlock()
 
-	// Seed with currently-connected devices
+	// Seed with currently-connected devices and emit events
 	if devices, err := hid.Enumerate(); err == nil {
 		m.mu.Lock()
 		for _, d := range devices {
 			m.known[d.Path] = d
-			log.Printf("[monitor] existing device: %s", d)
+			m.emit(Event{
+				Type:      EventDongleConnected,
+				Device:    d,
+				Timestamp: time.Now(),
+			})
 		}
 		m.mu.Unlock()
 	}
@@ -239,16 +243,9 @@ func (m *Monitor) pollHeadsetStatus() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Detect headset power state change
-	if !m.headsetChecked {
+	// Emit power state change (including first poll)
+	if !m.headsetChecked || status.Connected != m.headsetOnline {
 		m.headsetChecked = true
-		m.headsetOnline = status.Connected
-		if status.Connected {
-			log.Printf("[monitor] headset is online")
-		} else {
-			log.Printf("[monitor] headset is offline")
-		}
-	} else if status.Connected != m.headsetOnline {
 		m.headsetOnline = status.Connected
 		evtType := EventHeadsetPowerOn
 		if !status.Connected {
