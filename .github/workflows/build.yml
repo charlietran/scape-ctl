@@ -19,5 +19,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Fix git safe directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - run: go vet ./...
       - run: go build -ldflags "-s -w" ./cmd/scape-ctl
