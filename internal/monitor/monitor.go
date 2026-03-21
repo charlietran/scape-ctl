@@ -193,7 +193,14 @@ func (m *Monitor) tick() {
 
 	// Poll headset status + keepalive every tick (~1s)
 	m.pollHeadsetStatus(dev)
-	dev.SendKeepalive()
+
+	// pollHeadsetStatus may have closed dev on error — recheck
+	m.mu.Lock()
+	stillOpen := m.dev == dev
+	m.mu.Unlock()
+	if stillOpen {
+		dev.SendKeepalive()
+	}
 }
 
 func (m *Monitor) scanBus() {
