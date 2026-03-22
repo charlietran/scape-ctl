@@ -17,9 +17,12 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -46,6 +49,8 @@ func main() {
 			cmdRaw(os.Args[2:])
 		case "sniff":
 			cmdSniff()
+		case "eq-code":
+			cmdEqCode(os.Args[2:])
 		case "help", "-h", "--help":
 			cmdHelp()
 		default:
@@ -212,6 +217,82 @@ func cmdSniff() {
 	}
 }
 
+func cmdEqCode(args []string) {
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "usage: scape-ctl eq-code <decode|encode> [args]")
+		fmt.Fprintln(os.Stderr, "  decode <code>   Decode an EQ code string")
+		fmt.Fprintln(os.Stderr, "  encode <bands>  Encode bands (not yet implemented)")
+		os.Exit(1)
+	}
+
+	switch args[0] {
+	case "decode":
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "usage: scape-ctl eq-code decode <code>")
+			os.Exit(1)
+		}
+		decodeEqCode(args[1])
+	default:
+		fmt.Fprintf(os.Stderr, "unknown eq-code subcommand: %s\n", args[0])
+		os.Exit(1)
+	}
+}
+
+func decodeEqCode(code string) {
+	data, err := base64.StdEncoding.DecodeString(code)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid base64: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(data) < 3 {
+		fmt.Fprintln(os.Stderr, "EQ code too short")
+		os.Exit(1)
+	}
+
+	version := data[0]
+	numBands := int(data[1])
+
+	if version != 1 {
+		fmt.Fprintf(os.Stderr, "unsupported EQ code version: %d\n", version)
+		os.Exit(1)
+	}
+
+	// Verify checksum (XOR of all bytes except last)
+	var checksum byte
+	for i := 0; i < len(data)-1; i++ {
+		checksum ^= data[i]
+	}
+	if checksum != data[len(data)-1] {
+		fmt.Fprintf(os.Stderr, "checksum mismatch: computed 0x%02x, stored 0x%02x\n", checksum, data[len(data)-1])
+		os.Exit(1)
+	}
+
+	filterNames := map[byte]string{0: "Peaking", 1: "LowShelf", 2: "HighShelf"}
+
+	fmt.Printf("EQ Code: %d bands\n\n", numBands)
+	offset := 2
+	for i := 0; i < numBands; i++ {
+		if offset+11 > len(data) {
+			fmt.Fprintf(os.Stderr, "truncated data at band %d\n", i+1)
+			os.Exit(1)
+		}
+		filterType := data[offset]
+		gain := math.Float32frombits(binary.LittleEndian.Uint32(data[offset+1:]))
+		q := math.Float32frombits(binary.LittleEndian.Uint32(data[offset+5:]))
+		freq := binary.LittleEndian.Uint16(data[offset+9:])
+
+		name := filterNames[filterType]
+		if name == "" {
+			name = fmt.Sprintf("type%d", filterType)
+		}
+
+		fmt.Printf("  Band %d: %-10s  freq=%5dHz  gain=%+.1fdB  Q=%.2f\n",
+			i+1, name, freq, gain, q)
+		offset += 15
+	}
+}
+
 func cmdHelp() {
 	fmt.Println(`scape-ctl — Fractal Design Scape headset controller
 
@@ -221,13 +302,12 @@ Usage:
   scape-ctl status       Print headset status (battery, firmware, etc.)
   scape-ctl raw <hex>    Send raw HID report (for reverse engineering)
   scape-ctl sniff        Print all incoming HID data continuously
+  scape-ctl eq-code      Decode/encode EQ preset codes
   scape-ctl help         Show this help
 
 Config:  ` + config.Path() + `
-Sniffer: tools/webhid_sniffer.js (paste into Chrome DevTools)
 
 Triggers:
-  Configure scripts in the config file to run on connect/disconnect.
-  Scripts receive SCAPE_EVENT, SCAPE_DEVICE, SCAPE_VID, SCAPE_PID,
-  SCAPE_PATH, SCAPE_TIMESTAMP, and SCAPE_JSON environment variables.`)
+  Configure scripts in the config file to run on device events.
+  See config.example.toml for event types and examples.`)
 }
