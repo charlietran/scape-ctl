@@ -35,7 +35,7 @@ jobs:
       - name: Build Windows
         run: |
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 \
-            go build -ldflags "-s -w -X main.version=${{ steps.version.outputs.version }}" \
+            go build -ldflags "-s -w -H windowsgui -X main.version=${{ steps.version.outputs.version }}" \
             -o scape-ctl_windows_amd64/scape-ctl.exe ./cmd/scape-ctl
           cp README.md config.example.toml scape-ctl_windows_amd64/
           cd scape-ctl_windows_amd64 && zip -r ../scape-ctl_windows_amd64.zip . && cd ..
@@ -67,17 +67,55 @@ jobs:
 
       - name: Build macOS
         run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
           CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
-            go build -ldflags "-s -w -X main.version=${{ steps.version.outputs.version }}" \
-            -o scape-ctl_darwin_arm64/scape-ctl ./cmd/scape-ctl
-          cp README.md config.example.toml scape-ctl_darwin_arm64/
-          tar -czf scape-ctl_darwin_arm64.tar.gz scape-ctl_darwin_arm64
+            go build -ldflags "-s -w -X main.version=${VERSION}" \
+            -o scape-ctl ./cmd/scape-ctl
+
+          # Bundle as .app
+          mkdir -p "Scape Control.app/Contents/MacOS"
+          mkdir -p "Scape Control.app/Contents/Resources"
+          mv scape-ctl "Scape Control.app/Contents/MacOS/scape-ctl"
+          cp README.md config.example.toml "Scape Control.app/Contents/Resources/"
+
+          cat > "Scape Control.app/Contents/Info.plist" << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleName</key>
+              <string>Scape Control</string>
+              <key>CFBundleDisplayName</key>
+              <string>Scape Control</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.charlietran.scape-ctl</string>
+              <key>CFBundleVersion</key>
+              <string>VERSION_PLACEHOLDER</string>
+              <key>CFBundleShortVersionString</key>
+              <string>VERSION_PLACEHOLDER</string>
+              <key>CFBundleExecutable</key>
+              <string>scape-ctl</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>NSHighResolutionCapable</key>
+              <string>True</string>
+              <key>LSUIElement</key>
+              <string>1</string>
+          </dict>
+          </plist>
+          PLIST
+
+          sed -i '' "s/VERSION_PLACEHOLDER/${VERSION}/g" "Scape Control.app/Contents/Info.plist"
+
+          # Package as zip (preserves .app bundle structure)
+          zip -r scape-ctl_darwin_arm64.zip "Scape Control.app"
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: scape-ctl_darwin_arm64
-          path: scape-ctl_darwin_arm64.tar.gz
+          path: scape-ctl_darwin_arm64.zip
 
   release:
     needs: [build-linux-windows, build-macos]
