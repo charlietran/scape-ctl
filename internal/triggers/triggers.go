@@ -61,8 +61,10 @@ func (r *Runner) dispatch(evt monitor.Event) {
 		if r.cfg.Settings.Verbose {
 			log.Printf("[event] %s: %s", evtStr, evt.Device)
 		}
-	} else {
+	} else if r.cfg.Settings.Verbose {
 		log.Printf("[event] %s: %s", evtStr, evt.Device)
+	} else {
+		log.Printf("[event] %s: %s", evtStr, evt.Device.ShortString())
 	}
 
 	for _, rule := range r.cfg.Triggers {

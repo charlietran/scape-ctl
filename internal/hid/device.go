@@ -33,6 +33,10 @@ func (d DeviceInfo) String() string {
 	return fmt.Sprintf("%s [%04x:%04x] @ %s", d.ProductName, d.VendorID, d.ProductID, d.Path)
 }
 
+func (d DeviceInfo) ShortString() string {
+	return fmt.Sprintf("%s [%04x:%04x]", d.ProductName, d.VendorID, d.ProductID)
+}
+
 // Device is an open connection to a Fractal Scape HID device.
 type Device struct {
 	dev  *usbhid.Device
