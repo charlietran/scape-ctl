@@ -257,9 +257,9 @@ func (a *App) updateEqCheck(slot int) {
 	a.mEqParent.SetTitle(fmt.Sprintf("EQ Preset: %d", slot))
 	for i := 0; i < 3; i++ {
 		if i+1 == slot {
-			a.mEq[i].Check()
+			a.mEq[i].SetTitle(fmt.Sprintf("● Slot %d", i+1))
 		} else {
-			a.mEq[i].Uncheck()
+			a.mEq[i].SetTitle(fmt.Sprintf("  Slot %d", i+1))
 		}
 	}
 }
@@ -286,10 +286,8 @@ func (a *App) toggleLight() {
 func (a *App) updateLightStatus(on bool) {
 	if on {
 		a.mLightTog.SetTitle("RGB: On")
-		a.mLightTog.Check()
 	} else {
 		a.mLightTog.SetTitle("RGB: Off")
-		a.mLightTog.Uncheck()
 	}
 }
 
@@ -336,10 +334,8 @@ func (a *App) updateMicStatus(boomMic, muted bool) {
 func (a *App) updateMNCStatus(on bool) {
 	if on {
 		a.mMNCTog.SetTitle("Mic Noise Cancellation: On")
-		a.mMNCTog.Check()
 	} else {
 		a.mMNCTog.SetTitle("Mic Noise Cancellation: Off")
-		a.mMNCTog.Uncheck()
 	}
 }
 
@@ -388,9 +384,9 @@ func (a *App) updateSidetoneCheck(pct int) {
 	a.mSidetone.SetTitle(fmt.Sprintf("Sidetone: %d%%", pct))
 	for i := 0; i <= 10; i++ {
 		if i*10 == pct {
-			a.mSidetoneLvl[i].Check()
+			a.mSidetoneLvl[i].SetTitle(fmt.Sprintf("● %d%%", i*10))
 		} else {
-			a.mSidetoneLvl[i].Uncheck()
+			a.mSidetoneLvl[i].SetTitle(fmt.Sprintf("  %d%%", i*10))
 		}
 	}
 }
@@ -448,16 +444,16 @@ func (a *App) updateDispCheck() {
 		mode = "text"
 	}
 
-	a.mDispBlack.Uncheck()
-	a.mDispWhite.Uncheck()
-	a.mDispText.Uncheck()
+	a.mDispBlack.SetTitle("  Black Icon")
+	a.mDispWhite.SetTitle("  White Icon")
+	a.mDispText.SetTitle("  Text")
 	switch mode {
 	case "white":
-		a.mDispWhite.Check()
+		a.mDispWhite.SetTitle("● White Icon")
 	case "text":
-		a.mDispText.Check()
+		a.mDispText.SetTitle("● Text")
 	default:
-		a.mDispBlack.Check()
+		a.mDispBlack.SetTitle("● Black Icon")
 	}
 }
 
