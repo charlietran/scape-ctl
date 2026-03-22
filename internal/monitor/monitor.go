@@ -26,6 +26,8 @@ const (
 	EventEqChanged                           // EQ preset slot changed
 	EventRgbOn                               // RGB lighting turned on
 	EventRgbOff                              // RGB lighting turned off
+	EventMncOn                               // Mic Noise Cancellation enabled
+	EventMncOff                              // Mic Noise Cancellation disabled
 )
 
 func (e EventType) String() string {
@@ -52,6 +54,10 @@ func (e EventType) String() string {
 		return "RgbOn"
 	case EventRgbOff:
 		return "RgbOff"
+	case EventMncOn:
+		return "MncOn"
+	case EventMncOff:
+		return "MncOff"
 	default:
 		return "Unknown"
 	}
@@ -80,6 +86,7 @@ type Monitor struct {
 	lastMuted      bool        // last known mic mute state
 	lastEqSlot     int         // last known EQ slot
 	lastRgbOn      bool        // last known RGB state
+	lastMncOn      bool        // last known MNC state
 }
 
 // New creates a monitor that polls at the given interval.
@@ -404,6 +411,20 @@ func (m *Monitor) pollHeadsetStatus(dev *hid.Device) {
 			})
 		}
 		m.lastRgbOn = rgbOn
+
+		if status.MNCOn != m.lastMncOn && m.headsetChecked {
+			evtType := EventMncOff
+			if status.MNCOn {
+				evtType = EventMncOn
+			}
+			m.emit(Event{
+				Type:      evtType,
+				Device:    devInfo,
+				Status:    status,
+				Timestamp: time.Now(),
+			})
+		}
+		m.lastMncOn = status.MNCOn
 	}
 }
 

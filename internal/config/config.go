@@ -165,6 +165,8 @@ verbose = false
 #   "EqChanged"            EQ preset slot changed
 #   "RgbOn"                RGB lighting turned on
 #   "RgbOff"               RGB lighting turned off
+#   "MncOn"                Mic Noise Cancellation enabled
+#   "MncOff"               Mic Noise Cancellation disabled
 #
 # Fields:
 #   event    = Event name (required)
