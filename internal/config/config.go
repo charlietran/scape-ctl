@@ -35,7 +35,7 @@ type TriggerRule struct {
 func DefaultConfig() *Config {
 	return &Config{
 		Settings: Settings{
-			PollIntervalMS: 1000,
+			PollIntervalMS: 1500,
 			TrayDisplay:    "text",
 			TrayText:       "Scape",
 		},
@@ -133,7 +133,7 @@ const defaultConfigTOML = `# scape-ctl configuration
 
 # How often to poll the USB bus for device changes (milliseconds).
 # Minimum: 200. Default: 1000.
-poll_interval_ms = 1000
+poll_interval_ms = 1500
 
 # Tray icon display mode: "black", "white", or "text".
 # "black" and "white" show the Scape icon (pick whichever suits your
