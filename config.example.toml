@@ -30,6 +30,11 @@ verbose = false
 #   "HeadsetPowerOn"       Headset turned on (detected via dongle)
 #   "HeadsetPowerOff"      Headset turned off or out of range
 #   "BatteryLevel"         Battery update (use "battery" field for threshold)
+#   "MicMuted"             Mic muted (boom flipped up)
+#   "MicUnmuted"           Mic unmuted (boom flipped down)
+#   "EqChanged"            EQ preset slot changed
+#   "RgbOn"                RGB lighting turned on
+#   "RgbOff"               RGB lighting turned off
 #
 # Fields:
 #   event    = Event name (required)

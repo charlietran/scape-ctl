@@ -3,6 +3,7 @@
 package monitor
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -20,6 +21,11 @@ const (
 	EventHeadsetPowerOff                     // Headset powered off or out of range
 	EventHeadsetStatus                       // Periodic headset status update
 	EventBatteryLevel                        // Battery level update (for threshold triggers)
+	EventMicMuted                            // Mic muted (boom flipped up)
+	EventMicUnmuted                          // Mic unmuted (boom flipped down)
+	EventEqChanged                           // EQ preset slot changed
+	EventRgbOn                               // RGB lighting turned on
+	EventRgbOff                              // RGB lighting turned off
 )
 
 func (e EventType) String() string {
@@ -36,6 +42,16 @@ func (e EventType) String() string {
 		return "HeadsetStatus"
 	case EventBatteryLevel:
 		return "BatteryLevel"
+	case EventMicMuted:
+		return "MicMuted"
+	case EventMicUnmuted:
+		return "MicUnmuted"
+	case EventEqChanged:
+		return "EqChanged"
+	case EventRgbOn:
+		return "RgbOn"
+	case EventRgbOff:
+		return "RgbOff"
 	default:
 		return "Unknown"
 	}
@@ -52,6 +68,7 @@ type Event struct {
 // Monitor watches for Fractal HID devices and polls headset status.
 type Monitor struct {
 	interval       time.Duration
+	devMu          sync.Mutex // held during HID I/O to prevent command interleaving
 	stop           chan struct{}
 	mu             sync.Mutex
 	known          map[string]hid.DeviceInfo // path → info
@@ -60,6 +77,9 @@ type Monitor struct {
 	dev            *hid.Device // persistent HID connection
 	headsetOnline  bool        // last known headset power state
 	headsetChecked bool        // true after first status poll
+	lastMuted      bool        // last known mic mute state
+	lastEqSlot     int         // last known EQ slot
+	lastRgbOn      bool        // last known RGB state
 }
 
 // New creates a monitor that polls at the given interval.
@@ -135,6 +155,20 @@ func (m *Monitor) Device() *hid.Device {
 	return m.dev
 }
 
+// RunCommand executes a function on the device while pausing the poll loop.
+// This prevents command interleaving with status polls.
+func (m *Monitor) RunCommand(fn func(dev *hid.Device) error) error {
+	m.devMu.Lock()
+	defer m.devMu.Unlock()
+	m.mu.Lock()
+	dev := m.dev
+	m.mu.Unlock()
+	if dev == nil {
+		return fmt.Errorf("no device connected")
+	}
+	return fn(dev)
+}
+
 // KnownDevices returns paths of currently tracked devices.
 func (m *Monitor) KnownDevices() []hid.DeviceInfo {
 	m.mu.Lock()
@@ -188,6 +222,7 @@ func (m *Monitor) tick() {
 		return
 	}
 
+	m.devMu.Lock()
 	m.pollHeadsetStatus(dev)
 
 	// pollHeadsetStatus may have closed dev on error — recheck
@@ -197,6 +232,7 @@ func (m *Monitor) tick() {
 	if stillOpen {
 		dev.SendKeepalive()
 	}
+	m.devMu.Unlock()
 }
 
 func (m *Monitor) scanBus() {
@@ -329,6 +365,45 @@ func (m *Monitor) pollHeadsetStatus(dev *hid.Device) {
 				Timestamp: time.Now(),
 			})
 		}
+
+		// Emit state change events for mic, EQ, RGB
+		if status.Muted != m.lastMuted {
+			m.lastMuted = status.Muted
+			evtType := EventMicUnmuted
+			if status.Muted {
+				evtType = EventMicMuted
+			}
+			m.emit(Event{
+				Type:      evtType,
+				Device:    devInfo,
+				Status:    status,
+				Timestamp: time.Now(),
+			})
+		}
+		if status.EqSlot != m.lastEqSlot && m.lastEqSlot != 0 {
+			m.emit(Event{
+				Type:      EventEqChanged,
+				Device:    devInfo,
+				Status:    status,
+				Timestamp: time.Now(),
+			})
+		}
+		m.lastEqSlot = status.EqSlot
+
+		rgbOn := status.LightSlot > 0
+		if rgbOn != m.lastRgbOn && m.headsetChecked {
+			evtType := EventRgbOff
+			if rgbOn {
+				evtType = EventRgbOn
+			}
+			m.emit(Event{
+				Type:      evtType,
+				Device:    devInfo,
+				Status:    status,
+				Timestamp: time.Now(),
+			})
+		}
+		m.lastRgbOn = rgbOn
 	}
 }
 

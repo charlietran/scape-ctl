@@ -56,7 +56,7 @@ func (r *Runner) Run(events <-chan monitor.Event) {
 func (r *Runner) dispatch(evt monitor.Event) {
 	evtStr := evt.Type.String()
 
-	// HeadsetStatus and BatteryLevel fire every few seconds — only log in verbose mode
+	// HeadsetStatus and BatteryLevel fire every poll — only log in verbose mode
 	if evt.Type == monitor.EventHeadsetStatus || evt.Type == monitor.EventBatteryLevel {
 		if r.cfg.Settings.Verbose {
 			log.Printf("[event] %s: %s", evtStr, evt.Device)
