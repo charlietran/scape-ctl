@@ -2,12 +2,13 @@
 //
 // Scripts receive event context via environment variables:
 //
-//	SCAPE_EVENT      = "Connected" or "Disconnected"
+//	SCAPE_EVENT      = event name
 //	SCAPE_DEVICE     = product name
 //	SCAPE_VID        = vendor ID (hex)
 //	SCAPE_PID        = product ID (hex)
 //	SCAPE_PATH       = device path
 //	SCAPE_TIMESTAMP  = ISO 8601 timestamp
+//	SCAPE_BATTERY    = battery percentage (BatteryLevel events only)
 package triggers
 
 import (
@@ -17,6 +18,8 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"sync"
+	"time"
 
 	"github.com/charlietran/scape-ctl/internal/config"
 	"github.com/charlietran/scape-ctl/internal/monitor"
@@ -24,12 +27,17 @@ import (
 
 // Runner listens for monitor events and fires matching trigger scripts.
 type Runner struct {
-	cfg *config.Config
+	cfg      *config.Config
+	mu       sync.Mutex
+	lastFire map[string]time.Time // label → last fire time (for cooldown)
 }
 
 // New creates a trigger runner with the given config.
 func New(cfg *config.Config) *Runner {
-	return &Runner{cfg: cfg}
+	return &Runner{
+		cfg:      cfg,
+		lastFire: make(map[string]time.Time),
+	}
 }
 
 // Reload swaps in a new config (e.g. after user edits the file).
@@ -48,8 +56,8 @@ func (r *Runner) Run(events <-chan monitor.Event) {
 func (r *Runner) dispatch(evt monitor.Event) {
 	evtStr := evt.Type.String()
 
-	// HeadsetStatus fires every few seconds — only log in verbose mode
-	if evt.Type == monitor.EventHeadsetStatus {
+	// HeadsetStatus and BatteryLevel fire every few seconds — only log in verbose mode
+	if evt.Type == monitor.EventHeadsetStatus || evt.Type == monitor.EventBatteryLevel {
 		if r.cfg.Settings.Verbose {
 			log.Printf("[event] %s: %s", evtStr, evt.Device)
 		}
@@ -63,6 +71,34 @@ func (r *Runner) dispatch(evt monitor.Event) {
 		}
 		if rule.Event != evtStr {
 			continue
+		}
+
+		// BatteryLevel: only fire if battery <= configured threshold
+		if evt.Type == monitor.EventBatteryLevel && evt.Status != nil {
+			threshold := rule.Battery
+			if threshold <= 0 {
+				threshold = 20 // default
+			}
+			if evt.Status.BatteryPercent > threshold {
+				continue
+			}
+		}
+
+		// Cooldown: skip if fired too recently
+		if rule.Cooldown > 0 {
+			key := rule.Label
+			if key == "" {
+				key = rule.Script
+			}
+			r.mu.Lock()
+			last, exists := r.lastFire[key]
+			cooldownDur := time.Duration(rule.Cooldown) * time.Second
+			if exists && time.Since(last) < cooldownDur {
+				r.mu.Unlock()
+				continue
+			}
+			r.lastFire[key] = time.Now()
+			r.mu.Unlock()
 		}
 
 		label := rule.Label
@@ -92,7 +128,7 @@ func (r *Runner) exec(rule config.TriggerRule, evt monitor.Event) {
 		cmd = exec.Command("sh", "-c", rule.Script)
 	}
 
-	cmd.Env = append(os.Environ(),
+	env := append(os.Environ(),
 		"SCAPE_EVENT="+evt.Type.String(),
 		"SCAPE_DEVICE="+evt.Device.ProductName,
 		"SCAPE_VID="+fmt.Sprintf("%04x", evt.Device.VendorID),
@@ -101,6 +137,13 @@ func (r *Runner) exec(rule config.TriggerRule, evt monitor.Event) {
 		"SCAPE_TIMESTAMP="+evt.Timestamp.Format("2006-01-02T15:04:05Z07:00"),
 		"SCAPE_JSON="+string(evtJSON),
 	)
+
+	// Add battery percentage for BatteryLevel events
+	if evt.Status != nil && evt.Status.BatteryPercent >= 0 {
+		env = append(env, fmt.Sprintf("SCAPE_BATTERY=%d", evt.Status.BatteryPercent))
+	}
+
+	cmd.Env = env
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {

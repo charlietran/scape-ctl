@@ -4,7 +4,7 @@
 [settings]
 
 # How often to poll the USB bus for device changes (milliseconds).
-# Minimum: 200. Default: 1000.
+# Minimum: 200. Default: 1500.
 poll_interval_ms = 1500
 
 # Tray icon display mode: "black", "white", or "text".
@@ -29,31 +29,40 @@ verbose = false
 #   "DongleDisconnected"   USB dongle unplugged
 #   "HeadsetPowerOn"       Headset turned on (detected via dongle)
 #   "HeadsetPowerOff"      Headset turned off or out of range
+#   "BatteryLevel"         Battery update (use "battery" field for threshold)
 #
-# Each trigger receives these environment variables:
+# Fields:
+#   event    = Event name (required)
+#   script   = Shell command to run (required)
+#   label    = Human-readable name (optional)
+#   enabled  = true/false (required)
+#   cooldown = Minimum seconds between firings (optional, default: 0)
+#   battery  = For BatteryLevel: fire when battery <= this % (optional, default: 20)
 #
-#   SCAPE_EVENT     Event name (see above)
+# Environment variables passed to scripts:
+#
+#   SCAPE_EVENT     Event name
 #   SCAPE_DEVICE    Product name (e.g. "Fractal Scape Dongle")
 #   SCAPE_VID       Vendor ID in hex (e.g. "36bc")
 #   SCAPE_PID       Product ID in hex (e.g. "0001")
 #   SCAPE_PATH      OS device path
 #   SCAPE_TIMESTAMP ISO 8601 timestamp
 #   SCAPE_JSON      Full event as JSON
+#   SCAPE_BATTERY   Battery percentage (BatteryLevel events only)
 #
 # Examples (uncomment to enable):
 #
-# macOS notification when headset powers on:
+# [[triggers]]
+# event    = "HeadsetPowerOn"
+# script   = "osascript -e 'display notification \"Headset connected\" with title \"Scape\"'"
+# label    = "Headset on notification"
+# enabled  = true
+# cooldown = 5
 #
 # [[triggers]]
-# event   = "HeadsetPowerOn"
-# script  = "osascript -e 'display notification \"Headset connected\" with title \"Scape\"'"
-# label   = "Headset on notification"
-# enabled = true
-#
-# Linux notification when headset powers off:
-#
-# [[triggers]]
-# event   = "HeadsetPowerOff"
-# script  = "notify-send 'Scape' 'Headset disconnected'"
-# label   = "Headset off notification"
-# enabled = true
+# event    = "BatteryLevel"
+# script   = "osascript -e 'display notification \"Battery at $SCAPE_BATTERY%\" with title \"Scape\"'"
+# label    = "Low battery warning"
+# enabled  = true
+# battery  = 20
+# cooldown = 300

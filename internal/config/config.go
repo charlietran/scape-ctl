@@ -26,10 +26,12 @@ type Settings struct {
 }
 
 type TriggerRule struct {
-	Event   string `toml:"event"`   // "Connected" or "Disconnected"
-	Script  string `toml:"script"`  // Shell command or script path
-	Label   string `toml:"label"`   // Human-readable name
-	Enabled bool   `toml:"enabled"`
+	Event    string `toml:"event"`    // Event name (see docs)
+	Script   string `toml:"script"`   // Shell command or script path
+	Label    string `toml:"label"`    // Human-readable name
+	Enabled  bool   `toml:"enabled"`
+	Cooldown int    `toml:"cooldown"` // Minimum seconds between firings (0 = no cooldown)
+	Battery  int    `toml:"battery"`  // For BatteryLevel event: fire when battery <= this % (default: 20)
 }
 
 func DefaultConfig() *Config {
@@ -157,34 +159,43 @@ verbose = false
 #   "DongleDisconnected"   USB dongle unplugged
 #   "HeadsetPowerOn"       Headset turned on (detected via dongle)
 #   "HeadsetPowerOff"      Headset turned off or out of range
+#   "BatteryLevel"         Battery update (use "battery" field for threshold)
 #
-# Each trigger receives these environment variables:
+# Fields:
+#   event    = Event name (required)
+#   script   = Shell command to run (required)
+#   label    = Human-readable name (optional)
+#   enabled  = true/false (required)
+#   cooldown = Minimum seconds between firings (optional, default: 0)
+#   battery  = For BatteryLevel: fire when battery <= this % (optional, default: 20)
 #
-#   SCAPE_EVENT     Event name (see above)
+# Environment variables passed to scripts:
+#
+#   SCAPE_EVENT     Event name
 #   SCAPE_DEVICE    Product name (e.g. "Fractal Scape Dongle")
 #   SCAPE_VID       Vendor ID in hex (e.g. "36bc")
 #   SCAPE_PID       Product ID in hex (e.g. "0001")
 #   SCAPE_PATH      OS device path
 #   SCAPE_TIMESTAMP ISO 8601 timestamp
 #   SCAPE_JSON      Full event as JSON
+#   SCAPE_BATTERY   Battery percentage (BatteryLevel events only)
 #
 # Examples (uncomment to enable):
 #
-# macOS notification when headset powers on:
+# [[triggers]]
+# event    = "HeadsetPowerOn"
+# script   = "osascript -e 'display notification \"Headset connected\" with title \"Scape\"'"
+# label    = "Headset on notification"
+# enabled  = true
+# cooldown = 5
 #
 # [[triggers]]
-# event   = "HeadsetPowerOn"
-# script  = "osascript -e 'display notification \"Headset connected\" with title \"Scape\"'"
-# label   = "Headset on notification"
-# enabled = true
-#
-# Linux notification when headset powers off:
-#
-# [[triggers]]
-# event   = "HeadsetPowerOff"
-# script  = "notify-send 'Scape' 'Headset disconnected'"
-# label   = "Headset off notification"
-# enabled = true
+# event    = "BatteryLevel"
+# script   = "osascript -e 'display notification \"Battery at $SCAPE_BATTERY%\" with title \"Scape\"'"
+# label    = "Low battery warning"
+# enabled  = true
+# battery  = 20
+# cooldown = 300
 `
 
 // EnsureExists creates a default config file if none exists.
