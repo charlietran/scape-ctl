@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/getlantern/systray"
+	"fyne.io/systray"
 
 	"github.com/charlietran/scape-ctl/internal/config"
 	"github.com/charlietran/scape-ctl/internal/hid"

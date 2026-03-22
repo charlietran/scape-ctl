@@ -27,7 +27,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/getlantern/systray"
+	"fyne.io/systray"
 
 	"github.com/charlietran/scape-ctl/internal/config"
 	"github.com/charlietran/scape-ctl/internal/hid"
@@ -97,14 +97,6 @@ func cmdStatus() {
 	}
 	defer dev.Close()
 
-	// Query dongle info
-	dongleFW, _ := dev.GetDongleFW()
-	dongleSerial, _ := dev.GetDongleSerial()
-
-	fmt.Printf("Dongle FW    : %s\n", dongleFW)
-	fmt.Printf("Dongle Serial: %s\n", dongleSerial)
-	fmt.Println()
-
 	// Query full status via f1 21 (battery, connection, mode)
 	status, err := dev.GetStatus()
 	if err != nil {
@@ -116,7 +108,7 @@ func cmdStatus() {
 		return
 	}
 
-	// Headset is connected — query its FW/serial
+	// Query FW/serial (these may fail due to unsolicited dongle reports)
 	headsetFW, _ := dev.GetHeadsetFW()
 	headsetSerial, _ := dev.GetHeadsetSerial()
 
