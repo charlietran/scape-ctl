@@ -15,6 +15,7 @@ internal/
   hid/device.go                  hidapi wrapper (open/send/receive via go-hid)
   monitor/monitor.go             USB bus poller, emits connect/disconnect events
   triggers/triggers.go           Runs user shell scripts on device events
+  usbhid/                        Inlined pure Go HID library (from rafaelmartins/usbhid)
   config/config.go               TOML config (~/.config/scape-ctl/config.toml)
   tray/tray.go                   System tray menu and click handlers
 tools/webhid_sniffer.js          Chrome DevTools script for capturing HID traffic
@@ -58,20 +59,21 @@ On macOS: `brew install hidapi`. On Windows: hidapi is bundled by go-hid.
 
 ## Dependencies
 
-- `github.com/sstallion/go-hid` — Go bindings for hidapi (CGO, links libhidapi). PLANNED: migrate to `github.com/rafaelmartins/usbhid` (pure Go, no CGO, async input reports via IOKit callbacks on macOS)
-- `github.com/getlantern/systray` — Cross-platform system tray
+- `internal/usbhid` — Inlined pure Go HID library (from github.com/rafaelmartins/usbhid, BSD-3-Clause). Uses IOKit directly on macOS via purego for async input report callbacks. No CGO required.
+- `github.com/ebitengine/purego` — Pure Go syscall bridge (used by usbhid for IOKit on macOS)
+- `fyne.io/systray` — Cross-platform system tray (fork of getlantern/systray, no GTK dependency)
 - `github.com/pelletier/go-toml/v2` — TOML parser
 
-CGO is currently required because go-hid wraps the C hidapi library. Cross-compilation needs the target platform's hidapi headers/libs.
+No CGO required. Cross-compilation does not need platform-specific headers.
 
 ## Key Architecture Notes
 
 - Monitor keeps a persistent HID connection and polls f1 21 every 1.5s
 - Tray commands use monitor.RunCommand() which locks devMu to prevent interleaving with polls
 - Sidetone requires interleaved status polls between f1 34 commands (dongle firmware requirement)
-- The dongle caches f1 21 responses for ~10s — state changes from the headset (mute, MNC) are delayed. This is a hidapi limitation; WebHID doesn't have it.
+- The dongle sends unsolicited 11 21 reports — SendAndReceive filters by echo bytes to find the correct response
 - 11 21 byte 3 (headset present) is unreliable — flaps in a 3-tick cycle. Use f1 21 byte 18 for presence.
-- macOS: must open device non-exclusive (SetOpenExclusive(false)) or volume/media keys stop working
+- Device is opened non-exclusive so the OS still receives volume/media key reports
 
 ## Reverse Engineering Workflow
 

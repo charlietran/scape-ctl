@@ -26,9 +26,7 @@ make build
 #### System dependencies
 
 - **Go 1.22+**
-- **macOS**: `brew install hidapi`
-- **Linux**: `sudo apt install libhidapi-dev libudev-dev libayatana-appindicator3-dev libgtk-3-dev`
-- **Windows**: hidapi is bundled by go-hid
+- No system dependencies on any platform
 
 ## Usage
 
@@ -380,6 +378,16 @@ All 5 steps run sequentially under a `deviceMutex` via `runCancellableExclusiveG
 - `tools/webhid_sniffer.js` — Paste into Chrome DevTools on adjust.fractal-design.com to capture all HID traffic with annotations
 - The offline Electron app can be unpacked with `npx asar extract resources/app.asar unpacked/` for browseable JS source
 
+## Planned Features
+
+- **Headset button triggers** — Listen to Consumer Control (volume, media keys) and Telephony (call buttons) HID collections to trigger scripts on button presses. The device exposes these as separate collections (usagePage 0x000C and 0x000B) that can be read alongside the vendor protocol.
+- **EQ code import/export** — Encode and share EQ presets using the same base64 format as the Adjust Pro web app.
+- **Full lighting theme control** — Upload custom RGB themes via the a4 bulk transfer protocol.
+
+## Credits
+
+- USB HID implementation based on [rafaelmartins/usbhid](https://github.com/rafaelmartins/usbhid) — a pure Go library for USB HID device communication using native OS APIs (IOKit on macOS, hidraw on Linux, WinAPI on Windows). BSD-3-Clause license.
+
 ## License
 
-MIT
+GNU General Public License v3.0
