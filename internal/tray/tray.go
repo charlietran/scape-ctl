@@ -42,8 +42,10 @@ type App struct {
 	mLightTog  *systray.MenuItem
 	lightOn    bool
 	mMicMute   *systray.MenuItem
-	mMNCTog    *systray.MenuItem
-	mncOn      bool
+	mMNCTog       *systray.MenuItem
+	mncOn         bool
+	mSidetone     *systray.MenuItem
+	mSidetoneLvl  [11]*systray.MenuItem // 0%, 10%, 20%... 100%
 	mDispBlack *systray.MenuItem
 	mDispWhite *systray.MenuItem
 	mDispText  *systray.MenuItem
@@ -91,6 +93,11 @@ func (a *App) OnReady() {
 	a.mLightTog.Hide()
 	a.mMNCTog = systray.AddMenuItem("Mic Noise Cancellation: Off", "Toggle MNC")
 	a.mMNCTog.Hide()
+	a.mSidetone = systray.AddMenuItem("Sidetone: 0%", "Adjust sidetone")
+	for i := 0; i <= 10; i++ {
+		a.mSidetoneLvl[i] = a.mSidetone.AddSubMenuItem(fmt.Sprintf("%d%%", i*10), fmt.Sprintf("Set sidetone to %d%%", i*10))
+	}
+	a.mSidetone.Hide()
 
 	systray.AddSeparator()
 
@@ -134,6 +141,28 @@ func (a *App) handleClicks() {
 			a.toggleLight()
 		case <-a.mMNCTog.ClickedCh:
 			a.toggleMNC()
+		case <-a.mSidetoneLvl[0].ClickedCh:
+			a.setSidetone(0)
+		case <-a.mSidetoneLvl[1].ClickedCh:
+			a.setSidetone(10)
+		case <-a.mSidetoneLvl[2].ClickedCh:
+			a.setSidetone(20)
+		case <-a.mSidetoneLvl[3].ClickedCh:
+			a.setSidetone(30)
+		case <-a.mSidetoneLvl[4].ClickedCh:
+			a.setSidetone(40)
+		case <-a.mSidetoneLvl[5].ClickedCh:
+			a.setSidetone(50)
+		case <-a.mSidetoneLvl[6].ClickedCh:
+			a.setSidetone(60)
+		case <-a.mSidetoneLvl[7].ClickedCh:
+			a.setSidetone(70)
+		case <-a.mSidetoneLvl[8].ClickedCh:
+			a.setSidetone(80)
+		case <-a.mSidetoneLvl[9].ClickedCh:
+			a.setSidetone(90)
+		case <-a.mSidetoneLvl[10].ClickedCh:
+			a.setSidetone(100)
 		case <-a.mDispBlack.ClickedCh:
 			a.setDisplay("black")
 		case <-a.mDispWhite.ClickedCh:
@@ -193,6 +222,8 @@ func (a *App) handleMonitorEvents() {
 			a.updateLightStatus(s.LightSlot > 0)
 			a.mMNCTog.Show()
 			a.updateMNCStatus(s.MNCOn)
+			a.mSidetone.Show()
+			a.updateSidetoneCheck(s.SidetoneVol)
 		}
 	}
 }
@@ -282,6 +313,7 @@ func (a *App) hideHeadsetControls() {
 	a.mEqParent.Hide()
 	a.mLightTog.Hide()
 	a.mMNCTog.Hide()
+	a.mSidetone.Hide()
 }
 
 func (a *App) updateMicStatus(boomMic, muted bool) {
@@ -304,6 +336,29 @@ func (a *App) updateMNCStatus(on bool) {
 	} else {
 		a.mMNCTog.SetTitle("Mic Noise Cancellation: Off")
 		a.mMNCTog.Uncheck()
+	}
+}
+
+func (a *App) setSidetone(pct int) {
+	if err := a.sendCommand(func(dev *hid.Device) error {
+		rid, payload := hid.BuildSetSidetone(byte(pct))
+		return dev.Send(rid, payload)
+	}); err != nil {
+		log.Printf("[tray] set sidetone error: %v", err)
+	} else {
+		a.updateSidetoneCheck(pct)
+		log.Printf("[tray] sidetone %d%%", pct)
+	}
+}
+
+func (a *App) updateSidetoneCheck(pct int) {
+	a.mSidetone.SetTitle(fmt.Sprintf("Sidetone: %d%%", pct))
+	for i := 0; i <= 10; i++ {
+		if i*10 == pct {
+			a.mSidetoneLvl[i].Check()
+		} else {
+			a.mSidetoneLvl[i].Uncheck()
+		}
 	}
 }
 

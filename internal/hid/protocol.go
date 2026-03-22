@@ -64,6 +64,7 @@ var (
 	CmdHeadsetPresence  = [2]byte{0xF1, 0x05} // → [2]=present (0/1)
 	CmdStatusPoll       = [2]byte{0xF1, 0x21} // → full status blob
 	CmdMNCControl       = [2]byte{0xF1, 0x36} // + 0x01 (on) / 0x00 (off)
+	CmdSidetone         = [2]byte{0xF1, 0x34} // + 0x02, value
 )
 
 // Config transfer (family 0xA4)
@@ -230,6 +231,17 @@ func BuildSetLightOn(on bool) (byte, []byte) {
 	if on {
 		buf[2] = 0x01
 	}
+	return ReportID, buf
+}
+
+// BuildSetSidetone sets the sidetone volume (0-100).
+// Sends [0xF1, 0x34, 0x02, value].
+func BuildSetSidetone(value byte) (byte, []byte) {
+	buf := make([]byte, ReportSize)
+	buf[0] = CmdSidetone[0]
+	buf[1] = CmdSidetone[1]
+	buf[2] = 0x02
+	buf[3] = value
 	return ReportID, buf
 }
 
