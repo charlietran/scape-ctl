@@ -37,10 +37,17 @@ func (d DeviceInfo) ShortString() string {
 	return fmt.Sprintf("%s [%04x:%04x]", d.ProductName, d.VendorID, d.ProductID)
 }
 
+// inputReport is a report received from the device's persistent reader goroutine.
+type inputReport struct {
+	data []byte
+	err  error
+}
+
 // Device is an open connection to a Fractal Scape HID device.
 type Device struct {
-	dev  *usbhid.Device
-	Info DeviceInfo
+	dev     *usbhid.Device
+	Info    DeviceInfo
+	reports chan inputReport // persistent reader goroutine feeds this
 }
 
 // Enumerate finds Fractal Design HID devices, returning only the
@@ -105,7 +112,14 @@ func OpenPath(path string) (*Device, error) {
 	if Verbose {
 		log.Printf("[hid] opened device: %s", info)
 	}
-	return &Device{dev: dev, Info: info}, nil
+
+	d := &Device{
+		dev:     dev,
+		Info:    info,
+		reports: make(chan inputReport, 16),
+	}
+	go d.readLoop()
+	return d, nil
 }
 
 // OpenFirst opens the first Fractal device found.
@@ -130,92 +144,61 @@ func (d *Device) Close() {
 
 // ── Low-level I/O ───────────────────────────────────
 
+// readLoop runs in a goroutine for the lifetime of the device connection.
+// It reads input reports and sends them to the reports channel.
+// Exits when the device is closed (GetInputReport returns an error).
+func (d *Device) readLoop() {
+	for {
+		_, data, err := d.dev.GetInputReport()
+		d.reports <- inputReport{data, err}
+		if err != nil {
+			return
+		}
+	}
+}
+
 // Send transmits an output report to the device.
 func (d *Device) Send(reportID byte, payload []byte) error {
 	return d.dev.SetOutputReport(reportID, payload)
 }
 
-// readReport reads the next input report with a timeout. Returns report data
-// (without report ID prefix) or nil on timeout. Uses a single goroutine
-// for the blocking GetInputReport call.
-func (d *Device) readReport(timeout time.Duration) ([]byte, error) {
-	type result struct {
-		data []byte
-		err  error
-	}
-
-	ch := make(chan result, 1)
-	go func() {
-		_, data, err := d.dev.GetInputReport()
-		ch <- result{data, err}
-	}()
-
+// Read reads an input report from the device with a timeout.
+// Returns nil if no data available within the timeout.
+func (d *Device) Read(timeout time.Duration) ([]byte, error) {
 	select {
-	case r := <-ch:
+	case r := <-d.reports:
 		if r.err != nil {
 			return nil, r.err
 		}
 		return r.data, nil
 	case <-time.After(timeout):
-		return nil, nil // timeout, not an error
+		return nil, nil
 	}
-}
-
-// Read reads an input report from the device with a timeout.
-// Returns nil if no data available within the timeout.
-func (d *Device) Read(timeout time.Duration) ([]byte, error) {
-	return d.readReport(timeout)
 }
 
 // SendAndReceive sends a command and waits for a matching response.
 // Responses are matched by the first 2 bytes (command echo). Unrelated
 // input reports (e.g. unsolicited dongle reports) are discarded.
-// A single reader goroutine is used for the entire operation.
 func (d *Device) SendAndReceive(reportID byte, payload []byte, timeout time.Duration) ([]byte, error) {
 	if err := d.Send(reportID, payload); err != nil {
 		return nil, fmt.Errorf("send: %w", err)
 	}
 
-	type result struct {
-		data []byte
-		err  error
-	}
-
-	ch := make(chan result, 1)
-	done := make(chan struct{})
-
-	// Single goroutine reads reports until we find a match or give up
-	go func() {
-		for {
-			_, data, err := d.dev.GetInputReport()
-			select {
-			case <-done:
-				return
-			default:
-			}
-			if err != nil {
-				ch <- result{nil, err}
-				return
+	deadline := time.After(timeout)
+	for {
+		select {
+		case r := <-d.reports:
+			if r.err != nil {
+				return nil, fmt.Errorf("read: %w", r.err)
 			}
 			// Match by echo bytes
-			if len(data) >= 2 && len(payload) >= 2 && data[0] == payload[0] && data[1] == payload[1] {
-				ch <- result{data, nil}
-				return
+			if len(r.data) >= 2 && len(payload) >= 2 && r.data[0] == payload[0] && r.data[1] == payload[1] {
+				return r.data, nil
 			}
-			// Not our response — continue reading
+			// Not our response — discard and keep waiting
+		case <-deadline:
+			return nil, errors.New("timeout")
 		}
-	}()
-
-	select {
-	case r := <-ch:
-		close(done)
-		if r.err != nil {
-			return nil, fmt.Errorf("read: %w", r.err)
-		}
-		return r.data, nil
-	case <-time.After(timeout):
-		close(done)
-		return nil, errors.New("timeout")
 	}
 }
 
