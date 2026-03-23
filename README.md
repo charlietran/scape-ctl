@@ -228,6 +228,9 @@ which SwitchAudioSource  # e.g. /opt/homebrew/bin/SwitchAudioSource
 SwitchAudioSource -a     # list available devices
 ```
 
+> [!NOTE]  
+> The full path to SwitchAudioSource may differ on your system, run `which SwitchAudioSource` to see your actual path
+
 ```toml
 [[triggers]]
 event    = "HeadsetPowerOn"
@@ -244,16 +247,19 @@ cooldown = 5
 
 **Windows** — download [NirCmd](https://www.nirsoft.net/utils/nircmd.html) (free, single `.exe`, no install required). Place it somewhere permanent and use the full path:
 
+> [!NOTE]  
+> Replace `C:\Tools\nircmd.exe` below with the actual location of where you put nircmd.exe
+
 ```toml
 [[triggers]]
 event    = "HeadsetPowerOn"
-script   = "C:\\Tools\\nircmd.exe setdefaultsounddevice \"Fractal Design Scape\" 1"
+script   = 'C:\Tools\nircmd.exe setdefaultsounddevice "Fractal Design Scape" 1'
 enabled  = true
 cooldown = 5
 
 [[triggers]]
 event    = "HeadsetPowerOff"
-script   = "C:\\Tools\\nircmd.exe setdefaultsounddevice \"Speakers\" 1"
+script   = 'C:\Tools\nircmd.exe setdefaultsounddevice "Speakers" 1'
 enabled  = true
 cooldown = 5
 ```
@@ -281,37 +287,47 @@ cooldown = 5
 
 > Replace device names in the examples above with your actual device names.
 
+### Trigger fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `event` | Yes | Event name (see table below) |
+| `script` | Yes | Shell command to run |
+| `enabled` | Yes | `true` or `false` |
+| `cooldown` | No | Minimum seconds between firings (default: 0). Prevents the same script from running repeatedly if the event fires in quick succession. |
+| `battery` | No | For `BatteryLevel` only: fire when battery <= this % (default: 20) |
+
 ### Available events
 
-| Event | Description |
-|-------|-------------|
-| `DongleConnected` | USB receiver plugged in |
-| `DongleDisconnected` | USB receiver unplugged |
-| `HeadsetPowerOn` | Headset turned on (detected via dongle) |
-| `HeadsetPowerOff` | Headset turned off or out of range |
-| `BatteryLevel` | Battery update (use `battery` field for threshold) |
-| `MicMuted` | Mic muted (boom flipped up) |
-| `MicUnmuted` | Mic unmuted (boom flipped down) |
-| `EqChanged` | EQ preset slot changed |
-| `RgbOn` | RGB lighting turned on |
-| `RgbOff` | RGB lighting turned off |
-| `MncOn` | Mic Noise Cancellation enabled |
-| `MncOff` | Mic Noise Cancellation disabled |
+| Event                | Description                                        |
+| -------------------- | -------------------------------------------------- |
+| `DongleConnected`    | USB receiver plugged in                            |
+| `DongleDisconnected` | USB receiver unplugged                             |
+| `HeadsetPowerOn`     | Headset turned on (detected via dongle)            |
+| `HeadsetPowerOff`    | Headset turned off or out of range                 |
+| `BatteryLevel`       | Battery update (use `battery` field for threshold) |
+| `MicMuted`           | Mic muted (boom flipped up)                        |
+| `MicUnmuted`         | Mic unmuted (boom flipped down)                    |
+| `EqChanged`          | EQ preset slot changed                             |
+| `RgbOn`              | RGB lighting turned on                             |
+| `RgbOff`             | RGB lighting turned off                            |
+| `MncOn`              | Mic Noise Cancellation enabled                     |
+| `MncOff`             | Mic Noise Cancellation disabled                    |
 
 ### Environment variables
 
 Scripts receive these environment variables:
 
-| Variable | Example |
-|----------|---------|
-| `SCAPE_EVENT` | `HeadsetPowerOn` |
-| `SCAPE_DEVICE` | `Fractal Scape Dongle` |
-| `SCAPE_VID` | `36bc` |
-| `SCAPE_PID` | `0001` |
-| `SCAPE_PATH` | `DevSrvsID:4295080900` |
-| `SCAPE_TIMESTAMP` | `2026-03-21T14:30:00-07:00` |
-| `SCAPE_JSON` | Full event as JSON |
-| `SCAPE_BATTERY` | Battery % (BatteryLevel events only) |
+| Variable          | Example                              |
+| ----------------- | ------------------------------------ |
+| `SCAPE_EVENT`     | `HeadsetPowerOn`                     |
+| `SCAPE_DEVICE`    | `Fractal Scape Dongle`               |
+| `SCAPE_VID`       | `36bc`                               |
+| `SCAPE_PID`       | `0001`                               |
+| `SCAPE_PATH`      | `DevSrvsID:4295080900`               |
+| `SCAPE_TIMESTAMP` | `2026-03-21T14:30:00-07:00`          |
+| `SCAPE_JSON`      | Full event as JSON                   |
+| `SCAPE_BATTERY`   | Battery % (BatteryLevel events only) |
 
 ## USB HID Protocol Reference
 

@@ -108,13 +108,13 @@ verbose = false
 #
 # [[triggers]]
 # event    = "HeadsetPowerOn"
-# script   = "C:\\Tools\\nircmd.exe setdefaultsounddevice \"Fractal Design Scape\" 1"
+# script   = 'C:\Tools\nircmd.exe setdefaultsounddevice "Fractal Design Scape" 1'
 # enabled  = true
 # cooldown = 5
 #
 # [[triggers]]
 # event    = "HeadsetPowerOff"
-# script   = "C:\\Tools\\nircmd.exe setdefaultsounddevice \"Speakers\" 1"
+# script   = 'C:\Tools\nircmd.exe setdefaultsounddevice "Speakers" 1'
 # enabled  = true
 # cooldown = 5
 #

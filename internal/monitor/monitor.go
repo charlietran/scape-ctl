@@ -5,7 +5,6 @@ package monitor
 import (
 	"fmt"
 	"log"
-	"runtime"
 	"sync"
 	"time"
 
@@ -199,20 +198,12 @@ func (m *Monitor) poll() {
 	ticker := time.NewTicker(m.interval)
 	defer ticker.Stop()
 
-	memTicker := time.NewTicker(30 * time.Second)
-	defer memTicker.Stop()
-
 	for {
 		select {
 		case <-m.stop:
 			return
 		case <-ticker.C:
 			m.tick()
-		case <-memTicker.C:
-			var ms runtime.MemStats
-			runtime.ReadMemStats(&ms)
-			log.Printf("[mem] heap=%dMB sys=%dMB goroutines=%d",
-				ms.HeapAlloc/1024/1024, ms.Sys/1024/1024, runtime.NumGoroutine())
 		}
 	}
 }
