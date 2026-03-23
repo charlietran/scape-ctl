@@ -112,6 +112,8 @@ type App struct {
 	mConfigDir   *systray.MenuItem
 	mReload      *systray.MenuItem
 	mVersion     *systray.MenuItem
+	mUpdate      *systray.MenuItem
+	updateURL    string // set when an update is found
 	mQuit        *systray.MenuItem
 }
 
@@ -191,10 +193,8 @@ func (a *App) OnReady() {
 
 	systray.AddSeparator()
 	a.mVersion = systray.AddMenuItem(fmt.Sprintf("ScapeCtl %s", a.version), "")
+	a.mUpdate = systray.AddMenuItem("Check for Updates", "")
 	a.mQuit = systray.AddMenuItem("Quit", "")
-
-	// Check for updates in background
-	go a.checkForUpdate()
 
 	// Start click handlers
 	go a.handleClicks()
@@ -256,6 +256,12 @@ func (a *App) handleClicks() {
 			a.toggleAutostart()
 		case <-a.mVersion.ClickedCh:
 			a.openURL("https://github.com/charlietran/scape-ctl")
+		case <-a.mUpdate.ClickedCh:
+			if a.updateURL != "" {
+				a.openURL(a.updateURL)
+			} else {
+				go a.checkForUpdate()
+			}
 		case <-a.mConfigDir.ClickedCh:
 			a.openConfigDir()
 		case <-a.mReload.ClickedCh:
@@ -788,7 +794,12 @@ func (a *App) openURL(url string) {
 // checkForUpdate queries the GitHub API for the latest release and updates
 // the version menu item if a newer version is available.
 func (a *App) checkForUpdate() {
+	a.mUpdate.SetTitle("Checking...")
+	a.mUpdate.Disable()
+	defer a.mUpdate.Enable()
+
 	if a.version == "dev" || a.version == "" {
+		a.mUpdate.SetTitle("Check for Updates (dev build)")
 		return
 	}
 
@@ -796,18 +807,22 @@ func (a *App) checkForUpdate() {
 	resp, err := client.Get("https://api.github.com/repos/charlietran/scape-ctl/releases/latest")
 	if err != nil {
 		log.Printf("[tray] update check failed: %v", err)
+		a.mUpdate.SetTitle("Check for Updates (failed)")
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
+		a.mUpdate.SetTitle("Check for Updates (failed)")
 		return
 	}
 
 	var release struct {
 		TagName string `json:"tag_name"`
+		HTMLURL string `json:"html_url"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		a.mUpdate.SetTitle("Check for Updates (failed)")
 		return
 	}
 
@@ -816,7 +831,12 @@ func (a *App) checkForUpdate() {
 
 	if latest != current && isNewer(latest, current) {
 		a.mVersion.SetTitle(fmt.Sprintf("ScapeCtl %s (update: v%s)", a.version, latest))
+		a.mUpdate.SetTitle("Download Update")
+		a.updateURL = release.HTMLURL
 		log.Printf("[tray] update available: v%s → v%s", current, latest)
+		a.openURL(release.HTMLURL)
+	} else {
+		a.mUpdate.SetTitle("Check for Updates (up to date)")
 	}
 }
 
