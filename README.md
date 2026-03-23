@@ -198,7 +198,9 @@ A default config with comments is created on first run. See `config.example.toml
 
 ## Triggers
 
-Run scripts automatically when the headset powers on/off or the dongle is connected/disconnected.
+Run scripts automatically on device events. Add `[[triggers]]` entries to your config file (see `config.example.toml` for all options).
+
+### Notifications
 
 ```toml
 [[triggers]]
@@ -214,19 +216,107 @@ label   = "Headset off notification"
 enabled = true
 ```
 
-Available events: `DongleConnected`, `DongleDisconnected`, `HeadsetPowerOn`, `HeadsetPowerOff`
+### Audio Switching
 
-Scripts receive environment variables:
+Automatically switch your default audio output when the headset powers on/off. This requires a command-line audio switching tool.
 
-| Variable          | Example                     |
-| ----------------- | --------------------------- |
-| `SCAPE_EVENT`     | `HeadsetPowerOn`            |
-| `SCAPE_DEVICE`    | `Fractal Scape Dongle`      |
-| `SCAPE_VID`       | `36bc`                      |
-| `SCAPE_PID`       | `0001`                      |
-| `SCAPE_PATH`      | `DevSrvsID:4295080900`      |
+**macOS** — install [SwitchAudioSource](https://github.com/deweller/switchaudio-osx):
+
+```bash
+brew install switchaudio-osx
+SwitchAudioSource -a   # list available devices
+```
+
+```toml
+[[triggers]]
+event    = "HeadsetPowerOn"
+script   = "SwitchAudioSource -s 'Fractal Design Scape'"
+label    = "Switch audio to headset"
+enabled  = true
+cooldown = 5
+
+[[triggers]]
+event    = "HeadsetPowerOff"
+script   = "SwitchAudioSource -s 'MacBook Pro Speakers'"
+label    = "Switch audio to speakers"
+enabled  = true
+cooldown = 5
+```
+
+**Windows** — download [NirCmd](https://www.nirsoft.net/utils/nircmd.html) (free, single `.exe`, no install required):
+
+```toml
+[[triggers]]
+event    = "HeadsetPowerOn"
+script   = "nircmd setdefaultsounddevice \"Fractal Design Scape\" 1"
+label    = "Switch audio to headset"
+enabled  = true
+cooldown = 5
+
+[[triggers]]
+event    = "HeadsetPowerOff"
+script   = "nircmd setdefaultsounddevice \"Speakers\" 1"
+label    = "Switch audio to speakers"
+enabled  = true
+cooldown = 5
+```
+
+**Linux** — uses `pactl` (PulseAudio) or `wpctl` (PipeWire), usually pre-installed:
+
+```bash
+pactl list short sinks   # list devices (PulseAudio)
+wpctl status             # list devices (PipeWire)
+```
+
+```toml
+[[triggers]]
+event    = "HeadsetPowerOn"
+script   = "pactl set-default-sink alsa_output.usb-Fractal_Design_Scape"
+label    = "Switch audio to headset"
+enabled  = true
+cooldown = 5
+
+[[triggers]]
+event    = "HeadsetPowerOff"
+script   = "pactl set-default-sink alsa_output.pci-0000_00_1f.3.analog-stereo"
+label    = "Switch audio to speakers"
+enabled  = true
+cooldown = 5
+```
+
+> Replace device names in the examples above with your actual device names.
+
+### Available events
+
+| Event | Description |
+|-------|-------------|
+| `DongleConnected` | USB receiver plugged in |
+| `DongleDisconnected` | USB receiver unplugged |
+| `HeadsetPowerOn` | Headset turned on (detected via dongle) |
+| `HeadsetPowerOff` | Headset turned off or out of range |
+| `BatteryLevel` | Battery update (use `battery` field for threshold) |
+| `MicMuted` | Mic muted (boom flipped up) |
+| `MicUnmuted` | Mic unmuted (boom flipped down) |
+| `EqChanged` | EQ preset slot changed |
+| `RgbOn` | RGB lighting turned on |
+| `RgbOff` | RGB lighting turned off |
+| `MncOn` | Mic Noise Cancellation enabled |
+| `MncOff` | Mic Noise Cancellation disabled |
+
+### Environment variables
+
+Scripts receive these environment variables:
+
+| Variable | Example |
+|----------|---------|
+| `SCAPE_EVENT` | `HeadsetPowerOn` |
+| `SCAPE_DEVICE` | `Fractal Scape Dongle` |
+| `SCAPE_VID` | `36bc` |
+| `SCAPE_PID` | `0001` |
+| `SCAPE_PATH` | `DevSrvsID:4295080900` |
 | `SCAPE_TIMESTAMP` | `2026-03-21T14:30:00-07:00` |
-| `SCAPE_JSON`      | Full event as JSON          |
+| `SCAPE_JSON` | Full event as JSON |
+| `SCAPE_BATTERY` | Battery % (BatteryLevel events only) |
 
 ## USB HID Protocol Reference
 

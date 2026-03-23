@@ -72,3 +72,64 @@ verbose = false
 # enabled  = true
 # battery  = 20
 # cooldown = 300
+
+# ── Audio switching ─────────────────────────────────────────────
+#
+# Automatically switch your default audio output when the headset
+# connects or disconnects. Requires a command-line audio switcher:
+#
+#   macOS:   brew install switchaudio-osx
+#   Windows: download nircmd.exe from https://www.nirsoft.net/utils/nircmd.html
+#   Linux:   pactl (PulseAudio) or wpctl (PipeWire) — usually pre-installed
+#
+# Replace device names below with your actual device names.
+# Run `SwitchAudioSource -a` (macOS), `pactl list short sinks` (Linux),
+# or `nircmd showsounddevices` (Windows) to list available devices.
+#
+# macOS:
+#
+# [[triggers]]
+# event    = "HeadsetPowerOn"
+# script   = "SwitchAudioSource -s 'Fractal Design Scape'"
+# label    = "Switch audio to headset"
+# enabled  = true
+# cooldown = 5
+#
+# [[triggers]]
+# event    = "HeadsetPowerOff"
+# script   = "SwitchAudioSource -s 'MacBook Pro Speakers'"
+# label    = "Switch audio to speakers"
+# enabled  = true
+# cooldown = 5
+#
+# Windows:
+#
+# [[triggers]]
+# event    = "HeadsetPowerOn"
+# script   = "nircmd setdefaultsounddevice \"Fractal Design Scape\" 1"
+# label    = "Switch audio to headset"
+# enabled  = true
+# cooldown = 5
+#
+# [[triggers]]
+# event    = "HeadsetPowerOff"
+# script   = "nircmd setdefaultsounddevice \"Speakers\" 1"
+# label    = "Switch audio to speakers"
+# enabled  = true
+# cooldown = 5
+#
+# Linux (PulseAudio):
+#
+# [[triggers]]
+# event    = "HeadsetPowerOn"
+# script   = "pactl set-default-sink alsa_output.usb-Fractal_Design_Scape"
+# label    = "Switch audio to headset"
+# enabled  = true
+# cooldown = 5
+#
+# [[triggers]]
+# event    = "HeadsetPowerOff"
+# script   = "pactl set-default-sink alsa_output.pci-0000_00_1f.3.analog-stereo"
+# label    = "Switch audio to speakers"
+# enabled  = true
+# cooldown = 5
