@@ -36,6 +36,9 @@ import (
 	"github.com/charlietran/scape-ctl/internal/triggers"
 )
 
+// version is set at build time via -ldflags "-X main.version=..."
+var version = "dev"
+
 func main() {
 	log.SetFlags(log.Ltime | log.Lshortfile)
 
@@ -79,7 +82,7 @@ func main() {
 	triggerRunner := triggers.New(cfg)
 	go triggerRunner.Run(triggerEvents)
 
-	app := tray.New(cfg, mon, triggerRunner, trayEvents)
+	app := tray.New(cfg, mon, triggerRunner, trayEvents, version)
 	systray.Run(app.OnReady, app.OnExit)
 }
 

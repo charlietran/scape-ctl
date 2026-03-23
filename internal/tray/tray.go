@@ -3,11 +3,14 @@ package tray
 
 import (
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -71,6 +74,7 @@ type App struct {
 	mon      *monitor.Monitor
 	triggers *triggers.Runner
 	events   <-chan monitor.Event
+	version  string
 	mu       sync.Mutex
 
 	// Menu items
@@ -107,16 +111,18 @@ type App struct {
 	mAutostart   *systray.MenuItem
 	mConfigDir   *systray.MenuItem
 	mReload      *systray.MenuItem
+	mVersion     *systray.MenuItem
 	mQuit        *systray.MenuItem
 }
 
 // New creates the tray app.
-func New(cfg *config.Config, mon *monitor.Monitor, tr *triggers.Runner, events <-chan monitor.Event) *App {
+func New(cfg *config.Config, mon *monitor.Monitor, tr *triggers.Runner, events <-chan monitor.Event, version string) *App {
 	return &App{
 		cfg:      cfg,
 		mon:      mon,
 		triggers: tr,
 		events:   events,
+		version:  version,
 	}
 }
 
@@ -184,7 +190,11 @@ func (a *App) OnReady() {
 	a.mReload = systray.AddMenuItem("Reload Config", "")
 
 	systray.AddSeparator()
+	a.mVersion = systray.AddMenuItem(fmt.Sprintf("ScapeCtl %s", a.version), "")
 	a.mQuit = systray.AddMenuItem("Quit", "")
+
+	// Check for updates in background
+	go a.checkForUpdate()
 
 	// Start click handlers
 	go a.handleClicks()
@@ -244,6 +254,8 @@ func (a *App) handleClicks() {
 			a.toggleTriggers()
 		case <-a.mAutostart.ClickedCh:
 			a.toggleAutostart()
+		case <-a.mVersion.ClickedCh:
+			a.openURL("https://github.com/charlietran/scape-ctl")
 		case <-a.mConfigDir.ClickedCh:
 			a.openConfigDir()
 		case <-a.mReload.ClickedCh:
@@ -755,19 +767,77 @@ func (a *App) toggleAutostart() {
 func (a *App) openConfigDir() {
 	dir := config.Dir()
 	config.EnsureExists()
+	a.openURL(dir)
+}
 
+func (a *App) openURL(url string) {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		cmd = exec.Command("open", dir)
+		cmd = exec.Command("open", url)
 	case "windows":
-		cmd = exec.Command("explorer", dir)
+		cmd = exec.Command("cmd", "/c", "start", url)
 	default:
-		cmd = exec.Command("xdg-open", dir)
+		cmd = exec.Command("xdg-open", url)
+	}
+	if err := cmd.Start(); err != nil {
+		log.Printf("[tray] failed to open %s: %v", url, err)
+	}
+}
+
+// checkForUpdate queries the GitHub API for the latest release and updates
+// the version menu item if a newer version is available.
+func (a *App) checkForUpdate() {
+	if a.version == "dev" || a.version == "" {
+		return
 	}
 
-	if err := cmd.Start(); err != nil {
-		log.Printf("[tray] failed to open config dir: %v", err)
-		log.Printf("[tray] config location: %s", dir)
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get("https://api.github.com/repos/charlietran/scape-ctl/releases/latest")
+	if err != nil {
+		log.Printf("[tray] update check failed: %v", err)
+		return
 	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return
+	}
+
+	var release struct {
+		TagName string `json:"tag_name"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return
+	}
+
+	latest := strings.TrimPrefix(release.TagName, "v")
+	current := strings.TrimPrefix(a.version, "v")
+
+	if latest != current && isNewer(latest, current) {
+		a.mVersion.SetTitle(fmt.Sprintf("ScapeCtl %s (update: v%s)", a.version, latest))
+		log.Printf("[tray] update available: v%s → v%s", current, latest)
+	}
+}
+
+// isNewer returns true if version a is newer than version b (simple semver comparison).
+func isNewer(a, b string) bool {
+	partsA := strings.SplitN(a, ".", 3)
+	partsB := strings.SplitN(b, ".", 3)
+	for i := 0; i < 3; i++ {
+		var va, vb int
+		if i < len(partsA) {
+			fmt.Sscanf(partsA[i], "%d", &va)
+		}
+		if i < len(partsB) {
+			fmt.Sscanf(partsB[i], "%d", &vb)
+		}
+		if va > vb {
+			return true
+		}
+		if va < vb {
+			return false
+		}
+	}
+	return false
 }
