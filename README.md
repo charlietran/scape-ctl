@@ -17,9 +17,7 @@ Planned, not yet implemented:
 - EQ code import/export
 - Full lighting theme control
 
-Built for macOS, Windows and Linux, but only tested on macOS and Windows so far.
-
-## Table of Contents
+Built for macOS, Windows and Linux, but so far only tested on macOS and Windows.
 
 - [Install](#install)
 - [Usage](#usage)
@@ -263,6 +261,7 @@ Reverse-engineered from WebHID sniffer captures and the Fractal Adjust Pro Elect
 
 - `tools/webhid_sniffer.js` — Paste into Chrome DevTools on adjust.fractal-design.com to capture all HID traffic with annotations
 - The offline Electron app can be unpacked with `npx asar extract resources/app.asar unpacked/` for browseable JS source
+## USB HID Protocol Reference
 
 ### Device Identifiers
 
@@ -420,6 +419,7 @@ All 5 steps run sequentially under a `deviceMutex` via `runCancellableExclusiveG
 - USB HID implementation based on [rafaelmartins/usbhid](https://github.com/rafaelmartins/usbhid) — pure Go USB HID via native OS APIs (IOKit, hidraw, WinAPI). BSD-3-Clause.
 - System tray via [fyne-io/systray](https://github.com/fyne-io/systray) — cross-platform system tray library. BSD-3-Clause.
 - [ebitengine/purego](https://github.com/ebitengine/purego) — pure Go syscall bridge for calling C libraries without CGO. Apache-2.0.
+- Claude Code - huge help with figuring out the USB protocol and implementing the cross-platform Golang app
 
 ## License
 
