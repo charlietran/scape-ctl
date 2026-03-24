@@ -1,5 +1,5 @@
-/scape-ctl
-/scape-ctl-*
+/scapectl
+/scapectl-*
 *.exe
 tmp/
 .DS_Store

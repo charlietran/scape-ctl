@@ -16,11 +16,11 @@ import (
 
 	"fyne.io/systray"
 
-	"github.com/charlietran/scape-ctl/internal/autostart"
-	"github.com/charlietran/scape-ctl/internal/config"
-	"github.com/charlietran/scape-ctl/internal/hid"
-	"github.com/charlietran/scape-ctl/internal/monitor"
-	"github.com/charlietran/scape-ctl/internal/triggers"
+	"github.com/charlietran/scapectl/internal/autostart"
+	"github.com/charlietran/scapectl/internal/config"
+	"github.com/charlietran/scapectl/internal/hid"
+	"github.com/charlietran/scapectl/internal/monitor"
+	"github.com/charlietran/scapectl/internal/triggers"
 )
 
 //go:embed icons/icon_black.png
@@ -255,7 +255,7 @@ func (a *App) handleClicks() {
 		case <-a.mAutostart.ClickedCh:
 			a.toggleAutostart()
 		case <-a.mVersion.ClickedCh:
-			a.openURL("https://github.com/charlietran/scape-ctl")
+			a.openURL("https://github.com/charlietran/scapectl")
 		case <-a.mUpdate.ClickedCh:
 			if a.updateURL != "" {
 				a.openURL(a.updateURL)
@@ -804,7 +804,7 @@ func (a *App) checkForUpdate() {
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get("https://api.github.com/repos/charlietran/scape-ctl/releases/latest")
+	resp, err := client.Get("https://api.github.com/repos/charlietran/scapectl/releases/latest")
 	if err != nil {
 		log.Printf("[tray] update check failed: %v", err)
 		a.mUpdate.SetTitle("Check for Updates (failed)")

@@ -9,7 +9,7 @@ import (
 )
 
 const regKey = `Software\Microsoft\Windows\CurrentVersion\Run`
-const regValue = "scape-ctl"
+const regValue = "scapectl"
 
 func Enabled() bool {
 	k, err := registry.OpenKey(registry.CURRENT_USER, regKey, registry.QUERY_VALUE)

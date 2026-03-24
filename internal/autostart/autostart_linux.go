@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-const desktopFileName = "scape-ctl.desktop"
+const desktopFileName = "scapectl.desktop"
 
 func desktopFilePath() string {
 	cfgDir, err := os.UserConfigDir()

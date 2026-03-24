@@ -1,4 +1,4 @@
-// scape-ctl is a system tray application for controlling the
+// scapectl is a system tray application for controlling the
 // Fractal Design Scape wireless gaming headset.
 //
 // It provides:
@@ -9,11 +9,11 @@
 //
 // Usage:
 //
-//	scape-ctl              # launch tray app
-//	scape-ctl devices      # list connected Fractal HID devices and exit
-//	scape-ctl status       # print device status and exit
-//	scape-ctl raw <hex>    # send raw HID bytes (for reverse engineering)
-//	scape-ctl sniff        # continuous read mode (print all incoming HID data)
+//	scapectl              # launch tray app
+//	scapectl devices      # list connected Fractal HID devices and exit
+//	scapectl status       # print device status and exit
+//	scapectl raw <hex>    # send raw HID bytes (for reverse engineering)
+//	scapectl sniff        # continuous read mode (print all incoming HID data)
 package main
 
 import (
@@ -29,11 +29,11 @@ import (
 
 	"fyne.io/systray"
 
-	"github.com/charlietran/scape-ctl/internal/config"
-	"github.com/charlietran/scape-ctl/internal/hid"
-	"github.com/charlietran/scape-ctl/internal/monitor"
-	"github.com/charlietran/scape-ctl/internal/tray"
-	"github.com/charlietran/scape-ctl/internal/triggers"
+	"github.com/charlietran/scapectl/internal/config"
+	"github.com/charlietran/scapectl/internal/hid"
+	"github.com/charlietran/scapectl/internal/monitor"
+	"github.com/charlietran/scapectl/internal/tray"
+	"github.com/charlietran/scapectl/internal/triggers"
 )
 
 // version is set at build time via -ldflags "-X main.version=..."
@@ -140,8 +140,8 @@ func cmdStatus() {
 
 func cmdRaw(args []string) {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: scape-ctl raw <hex bytes>")
-		fmt.Fprintln(os.Stderr, "  e.g.: scape-ctl raw 01 02 03 ff")
+		fmt.Fprintln(os.Stderr, "usage: scapectl raw <hex bytes>")
+		fmt.Fprintln(os.Stderr, "  e.g.: scapectl raw 01 02 03 ff")
 		os.Exit(1)
 	}
 
@@ -214,7 +214,7 @@ func cmdSniff() {
 
 func cmdEqCode(args []string) {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: scape-ctl eq-code <decode|encode> [args]")
+		fmt.Fprintln(os.Stderr, "usage: scapectl eq-code <decode|encode> [args]")
 		fmt.Fprintln(os.Stderr, "  decode <code>   Decode an EQ code string")
 		fmt.Fprintln(os.Stderr, "  encode <bands>  Encode bands (not yet implemented)")
 		os.Exit(1)
@@ -223,7 +223,7 @@ func cmdEqCode(args []string) {
 	switch args[0] {
 	case "decode":
 		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "usage: scape-ctl eq-code decode <code>")
+			fmt.Fprintln(os.Stderr, "usage: scapectl eq-code decode <code>")
 			os.Exit(1)
 		}
 		decodeEqCode(args[1])
@@ -289,16 +289,16 @@ func decodeEqCode(code string) {
 }
 
 func cmdHelp() {
-	fmt.Println(`scape-ctl — Fractal Design Scape headset controller
+	fmt.Println(`scapectl — Fractal Design Scape headset controller
 
 Usage:
-  scape-ctl              Launch system tray app
-  scape-ctl devices      List connected Fractal HID devices
-  scape-ctl status       Print headset status (battery, firmware, etc.)
-  scape-ctl raw <hex>    Send raw HID report (for reverse engineering)
-  scape-ctl sniff        Print all incoming HID data continuously
-  scape-ctl eq-code      Decode/encode EQ preset codes
-  scape-ctl help         Show this help
+  scapectl              Launch system tray app
+  scapectl devices      List connected Fractal HID devices
+  scapectl status       Print headset status (battery, firmware, etc.)
+  scapectl raw <hex>    Send raw HID report (for reverse engineering)
+  scapectl sniff        Print all incoming HID data continuously
+  scapectl eq-code      Decode/encode EQ preset codes
+  scapectl help         Show this help
 
 Config:  ` + config.Path() + `
 

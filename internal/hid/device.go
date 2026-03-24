@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charlietran/scape-ctl/internal/usbhid"
+	"github.com/charlietran/scapectl/internal/usbhid"
 )
 
 // Verbose controls whether debug-level log messages are printed.

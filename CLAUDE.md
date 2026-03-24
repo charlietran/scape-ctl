@@ -2,21 +2,21 @@
 
 ## Project Overview
 
-scape-ctl is a Go system tray app + CLI for controlling the Fractal Design Scape wireless gaming headset over USB HID. It replaces the browser-only Adjust Pro web app (https://adjust.fractal-design.com) with a native desktop app that also supports script triggers on device connect/disconnect.
+scapectl is a Go system tray app + CLI for controlling the Fractal Design Scape wireless gaming headset over USB HID. It replaces the browser-only Adjust Pro web app (https://adjust.fractal-design.com) with a native desktop app that also supports script triggers on device connect/disconnect.
 
 **Status: pre-alpha / protocol discovery phase.** The HID command bytes in `internal/hid/protocol.go` are placeholders (`0x00`). They must be filled in by sniffing the Adjust Pro web app's WebHID traffic using `tools/webhid_sniffer.js`.
 
 ## Architecture
 
 ```
-cmd/scape-ctl/main.go           CLI entry point + tray launcher
+cmd/scapectl/main.go           CLI entry point + tray launcher
 internal/
   hid/protocol.go                Wire protocol constants, report builders/parsers
   hid/device.go                  hidapi wrapper (open/send/receive via go-hid)
   monitor/monitor.go             USB bus poller, emits connect/disconnect events
   triggers/triggers.go           Runs user shell scripts on device events
   usbhid/                        Inlined pure Go HID library (from rafaelmartins/usbhid)
-  config/config.go               TOML config (~/.config/scape-ctl/config.toml)
+  config/config.go               TOML config (~/.config/scapectl/config.toml)
   tray/tray.go                   System tray menu and click handlers
 tools/webhid_sniffer.js          Chrome DevTools script for capturing HID traffic
 ```
@@ -38,11 +38,11 @@ sudo apt install libhidapi-dev
 sudo cp 50-fractal.rules /etc/udev/rules.d/
 sudo udevadm control --reload-rules && sudo udevadm trigger
 
-make build        # produces ./scape-ctl
+make build        # produces ./scapectl
 make run          # build + launch tray
-./scape-ctl devices   # list Fractal HID devices
-./scape-ctl sniff     # print incoming HID data
-./scape-ctl raw 01 02 # send arbitrary bytes
+./scapectl devices   # list Fractal HID devices
+./scapectl sniff     # print incoming HID data
+./scapectl raw 01 02 # send arbitrary bytes
 ```
 
 On macOS: `brew install hidapi`. On Windows: hidapi is bundled by go-hid.
@@ -81,7 +81,7 @@ No CGO required. Cross-compilation does not need platform-specific headers.
 2. Paste `tools/webhid_sniffer.js` into Chrome DevTools on adjust.fractal-design.com
 3. Connect device, exercise features, call `scapeExport()` to download the HID log
 4. Update constants in `internal/hid/protocol.go`
-5. Test with `./scape-ctl raw` and `./scape-ctl sniff`
+5. Test with `./scapectl raw` and `./scapectl sniff`
 
 Alternatively, download the offline Electron app from Adjust Pro's Settings tab and unpack it:
 ```bash

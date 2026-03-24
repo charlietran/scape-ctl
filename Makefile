@@ -1,7 +1,7 @@
 .PHONY: build install clean run devices status sniff udev
 
-BINARY  := scape-ctl
-PKG     := ./cmd/scape-ctl
+BINARY  := scapectl
+PKG     := ./cmd/scapectl
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS := -s -w -X main.version=$(VERSION)
 

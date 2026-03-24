@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-const plistName = "com.scape-ctl.plist"
+const plistName = "com.scapectl.plist"
 
 func plistPath() string {
 	home, _ := os.UserHomeDir()
@@ -35,7 +35,7 @@ func Enable() error {
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.scape-ctl</string>
+    <string>com.scapectl</string>
     <key>ProgramArguments</key>
     <array>
         <string>%s</string>

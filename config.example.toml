@@ -1,5 +1,5 @@
-# scape-ctl configuration
-# Location: `scape-ctl help` shows the path for your OS.
+# scapectl configuration
+# Location: `scapectl help` shows the path for your OS.
 
 [settings]
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Release script for scape-ctl.
+# Release script for scapectl.
 # Usage: ./tools/release.sh [version]
 #
 # If version is omitted, auto-increments the patch number from the latest tag.
@@ -11,7 +11,7 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-MODULE="./cmd/scape-ctl"
+MODULE="./cmd/scapectl"
 LDFLAGS_BASE="-s -w"
 
 # ── Preflight ──
@@ -61,12 +61,12 @@ trap 'rm -rf "$BUILD_DIR"' EXIT
 echo "==> Building macOS (arm64)..."
 CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 \
     go build -ldflags "${LDFLAGS_BASE} -X main.version=${VERSION}" \
-    -o "${BUILD_DIR}/scape-ctl" ${MODULE}
+    -o "${BUILD_DIR}/scapectl" ${MODULE}
 
 # Bundle as .app
 APP_DIR="${BUILD_DIR}/ScapeCtl.app/Contents"
 mkdir -p "${APP_DIR}/MacOS" "${APP_DIR}/Resources"
-mv "${BUILD_DIR}/scape-ctl" "${APP_DIR}/MacOS/scape-ctl"
+mv "${BUILD_DIR}/scapectl" "${APP_DIR}/MacOS/scapectl"
 cp config.example.toml "${APP_DIR}/Resources/"
 
 cat > "${APP_DIR}/Info.plist" << PLIST
@@ -79,13 +79,13 @@ cat > "${APP_DIR}/Info.plist" << PLIST
     <key>CFBundleDisplayName</key>
     <string>Scape Control</string>
     <key>CFBundleIdentifier</key>
-    <string>com.charlietran.scape-ctl</string>
+    <string>com.charlietran.scapectl</string>
     <key>CFBundleVersion</key>
     <string>${VERSION}</string>
     <key>CFBundleShortVersionString</key>
     <string>${VERSION}</string>
     <key>CFBundleExecutable</key>
-    <string>scape-ctl</string>
+    <string>scapectl</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>NSHighResolutionCapable</key>
@@ -103,7 +103,7 @@ LINUX_DIR="${BUILD_DIR}/ScapeCtl"
 mkdir -p "${LINUX_DIR}"
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -ldflags "${LDFLAGS_BASE} -X main.version=${VERSION}" \
-    -o "${LINUX_DIR}/scape-ctl" ${MODULE}
+    -o "${LINUX_DIR}/scapectl" ${MODULE}
 cp config.example.toml 50-fractal.rules "${LINUX_DIR}/"
 tar -czf "${BUILD_DIR}/Linux_ScapeCtl.tar.gz" -C "${BUILD_DIR}" ScapeCtl
 
@@ -112,7 +112,7 @@ WIN_DIR="${BUILD_DIR}/win"
 mkdir -p "${WIN_DIR}"
 CGO_ENABLED=0 GOOS=windows GOARCH=amd64 \
     go build -ldflags "${LDFLAGS_BASE} -H windowsgui -X main.version=${VERSION}" \
-    -o "${WIN_DIR}/scape-ctl.exe" ${MODULE}
+    -o "${WIN_DIR}/scapectl.exe" ${MODULE}
 cp config.example.toml "${WIN_DIR}/"
 (cd "${WIN_DIR}" && zip -qr "${BUILD_DIR}/Win_ScapeCtl.zip" .)
 

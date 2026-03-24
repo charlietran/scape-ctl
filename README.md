@@ -1,4 +1,4 @@
-# scape-ctl
+# scapectl
 
 Native desktop controller and CLI for the **Fractal Design Scape** wireless gaming headset.
 
@@ -33,7 +33,7 @@ This is an unofficial app made for my own purposes, freely shared without any gu
 
 ## Install
 
-Grab the latest release for your platform from the [Releases page](https://github.com/charlietran/scape-ctl/releases). If you wish to compile yourself, see [Building from source](#building-from-source)
+Grab the latest release for your platform from the [Releases page](https://github.com/charlietran/scapectl/releases). If you wish to compile yourself, see [Building from source](#building-from-source)
 
 ## Security and Privacy
 
@@ -74,8 +74,8 @@ The app is meant to be simple menu interface for seeing the status of the headph
 
 Config file location:
 
-- **macOS**: `~/Library/Application Support/scape-ctl/config.toml`
-- **Linux**: `~/.config/scape-ctl/config.toml`
+- **macOS**: `~/Library/Application Support/scapectl/config.toml`
+- **Linux**: `~/.config/scapectl/config.toml`
 
 A default config with comments is created on first run. See `config.example.toml` for all options.
 
@@ -214,38 +214,38 @@ Scripts receive these environment variables:
 
 ### CLI
 
-You may optionally use the CLI for your own scripting or tinkering. Running `scape-ctl` with no arguments launches the system tray app. Pass a subcommand for CLI mode:
+You may optionally use the CLI for your own scripting or tinkering. Running `scapectl` with no arguments launches the system tray app. Pass a subcommand for CLI mode:
 
 ```bash
-scape-ctl status       # Print battery, firmware, EQ slot, mic, connection info
-scape-ctl devices      # List connected Fractal HID devices
-scape-ctl sniff        # Continuously print incoming HID data
-scape-ctl raw 02 f1 21 # Send arbitrary HID bytes
+scapectl status       # Print battery, firmware, EQ slot, mic, connection info
+scapectl devices      # List connected Fractal HID devices
+scapectl sniff        # Continuously print incoming HID data
+scapectl raw 02 f1 21 # Send arbitrary HID bytes
 ```
 
 On **macOS**, the binary is inside the app bundle. You can run CLI commands from it directly:
 
 ```bash
-ScapeCtl.app/Contents/MacOS/scape-ctl status
+ScapeCtl.app/Contents/MacOS/scapectl status
 ```
 
 On **Windows** and **Linux**, run the binary directly:
 
 ```bash
 # Windows
-scape-ctl.exe status
+scapectl.exe status
 
 # Linux
-./scape-ctl status
+./scapectl status
 ```
 
 ## Building from source
 
 ```bash
-git clone https://github.com/charlietran/scape-ctl
-cd scape-ctl
+git clone https://github.com/charlietran/scapectl
+cd scapectl
 make build
-./scape-ctl
+./scapectl
 ```
 
 Requires **Go 1.22+**. No other system dependencies on any platform.
@@ -411,7 +411,7 @@ The web app's dongle controller (`updateDeviceState`) sends `11 21` and reads by
 
 All 5 steps run sequentially under a `deviceMutex` via `runCancellableExclusiveGroup`. This multi-step handshake takes several seconds. If `headsetConnected` goes false during the handshake, the `CancellableExclusiveGroup` cancels the in-progress factory creation, so no false "connected" event is emitted.
 
-**Practical recommendation:** For simpler implementations, skip `11 21` for presence detection entirely and use only `f1 21` byte 18 (`btConnState`). The tradeoff is slower disconnect detection (~5s for the dongle's internal relay timeout) but zero false positives. This is the approach scape-ctl uses.
+**Practical recommendation:** For simpler implementations, skip `11 21` for presence detection entirely and use only `f1 21` byte 18 (`btConnState`). The tradeoff is slower disconnect detection (~5s for the dongle's internal relay timeout) but zero false positives. This is the approach scapectl uses.
 
 ## Credits
 

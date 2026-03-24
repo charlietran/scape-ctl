@@ -21,8 +21,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/charlietran/scape-ctl/internal/config"
-	"github.com/charlietran/scape-ctl/internal/monitor"
+	"github.com/charlietran/scapectl/internal/config"
+	"github.com/charlietran/scapectl/internal/monitor"
 )
 
 // Runner listens for monitor events and fires matching trigger scripts.

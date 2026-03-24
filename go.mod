@@ -1,4 +1,4 @@
-module github.com/charlietran/scape-ctl
+module github.com/charlietran/scapectl
 
 go 1.22
 

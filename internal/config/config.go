@@ -1,6 +1,6 @@
-// Package config handles loading/saving the scape-ctl configuration.
+// Package config handles loading/saving the scapectl configuration.
 //
-// Config file location: ~/.config/scape-ctl/config.toml (macOS: ~/Library/Application Support/scape-ctl/)
+// Config file location: ~/.config/scapectl/config.toml (macOS: ~/Library/Application Support/scapectl/)
 package config
 
 import (
@@ -48,10 +48,10 @@ func DefaultConfig() *Config {
 // Dir returns the config directory path.
 func Dir() string {
 	if cfgDir, err := os.UserConfigDir(); err == nil {
-		return filepath.Join(cfgDir, "scape-ctl")
+		return filepath.Join(cfgDir, "scapectl")
 	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "scape-ctl")
+	return filepath.Join(home, ".config", "scapectl")
 }
 
 // Path returns the config file path.
@@ -165,8 +165,8 @@ func SetRawValue(key, value string) error {
 }
 
 // defaultConfigTOML is the commented default config written on first run.
-const defaultConfigTOML = `# scape-ctl configuration
-# Location: ` + "`" + `scape-ctl help` + "`" + ` shows the path for your OS.
+const defaultConfigTOML = `# scapectl configuration
+# Location: ` + "`" + `scapectl help` + "`" + ` shows the path for your OS.
 
 [settings]
 
