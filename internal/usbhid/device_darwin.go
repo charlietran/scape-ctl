@@ -276,14 +276,10 @@ func buildMatchingDict(m *ManagerMatchCriteria) _CFDictionaryRef {
 		_CFRelease(_CFTypeRef(key))
 		_CFRelease(_CFTypeRef(val))
 	}
-	if m.UsagePage != 0 {
-		v := int32(m.UsagePage)
-		key := makeCFString("PrimaryUsagePage")
-		val := _CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt32Type, unsafe.Pointer(&v))
-		_CFDictionarySetValue(dict, _CFTypeRef(key), _CFTypeRef(val))
-		_CFRelease(_CFTypeRef(key))
-		_CFRelease(_CFTypeRef(val))
-	}
+	// Note: PrimaryUsagePage is NOT used here because composite devices
+	// report the first collection's usage page as primary, which may not
+	// be the vendor-specific collection we want. The Go-level filter in
+	// hid.Enumerate() handles usage page filtering after enumeration.
 	return dict
 }
 
