@@ -2,7 +2,7 @@
 
 Native desktop controller and CLI for the **Fractal Design Scape** wireless gaming headset.
 
-<img align="right"  height="300" alt="image" src="https://github.com/user-attachments/assets/7c6ec708-9fda-461a-a63e-31a04396f66d" />
+<img align="right" width="368" height="400" alt="image" src="https://github.com/user-attachments/assets/7c6ec708-9fda-461a-a63e-31a04396f66d" />
 
 Features:
 
