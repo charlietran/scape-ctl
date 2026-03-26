@@ -16,6 +16,7 @@ Planned, not yet implemented:
 - Customize headset button controls
 - EQ code import/export
 - Full lighting theme control
+- Detect when connected via Bluetooth
 
 Built for macOS, Windows and Linux, but so far only tested on macOS and Windows.
 
